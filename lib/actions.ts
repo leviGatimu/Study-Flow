@@ -8,7 +8,6 @@ import { join } from 'path';
 
 /**
  * Normalization Utility: Clean subject names to group them correctly
- * (e.g., "C (revision)" -> "C", "Physics'" -> "Physics")
  */
 function normalizeSubject(subject: string) {
   return subject
@@ -25,21 +24,13 @@ export async function ensureTasksGenerated(startDate: Date, endDate: Date) {
   const start = startOfDay(startDate);
   const end = endOfDay(endDate);
 
-  // 1. Fetch ALL existing tasks in the range to build a reliable lookup map
   const existingTasks = await prisma.task.findMany({
     where: {
-      date: {
-        gte: start,
-        lte: end
-      }
+      date: { gte: start, lte: end }
     },
-    select: {
-      templateId: true,
-      date: true
-    }
+    select: { templateId: true, date: true }
   });
 
-  // Create a Set of unique keys: "templateId|YYYY-MM-DD"
   const lookup = new Set(
     existingTasks
       .filter(t => t.templateId !== null)
@@ -47,8 +38,6 @@ export async function ensureTasksGenerated(startDate: Date, endDate: Date) {
   );
 
   const tasksToCreate = [];
-  
-  // Iterate through each day in the range
   let currentDate = start;
 
   while (currentDate <= end) {
@@ -58,7 +47,6 @@ export async function ensureTasksGenerated(startDate: Date, endDate: Date) {
     
     for (const template of dayTemplates) {
       const compositeKey = `${template.id}|${dateKey}`;
-
       if (!lookup.has(compositeKey)) {
         tasksToCreate.push({
           templateId: template.id,
@@ -66,25 +54,23 @@ export async function ensureTasksGenerated(startDate: Date, endDate: Date) {
           startTime: template.startTime,
           endTime: template.endTime,
           subject: template.subject,
-          type: template.type
+          type: template.type,
+          isMissed: false,
+          isDeleted: false
         });
-        // Add to lookup immediately so we don't duplicate within the same run
         lookup.add(compositeKey);
       }
     }
-    
     currentDate = addDays(currentDate, 1);
   }
 
   if (tasksToCreate.length > 0) {
-    await prisma.task.createMany({
-      data: tasksToCreate
-    });
+    await prisma.task.createMany({ data: tasksToCreate });
   }
 }
 
 /**
- * Fetch today's tasks
+ * Fetch today's tasks with priority logic
  */
 export async function getTodayTasks() {
   const today = new Date();
@@ -93,44 +79,78 @@ export async function getTodayTasks() {
   const start = startOfDay(today);
   const end = endOfDay(today);
 
-  return prisma.task.findMany({
+  const tasks = await prisma.task.findMany({
+    where: { 
+      date: { gte: start, lte: end },
+      isDeleted: false // Filter out deleted tasks
+    },
+    include: { template: true },
+    orderBy: { startTime: 'asc' }
+  });
+
+  const upcomingExams = await prisma.examEvent.findMany({
     where: {
-      date: {
-        gte: start,
-        lte: end
-      }
-    },
-    include: {
-      template: true
-    },
-    orderBy: {
-      startTime: 'asc'
+      date: { gte: start, lte: addDays(start, 7) }
     }
+  });
+
+  const urgentSubjects = new Set(upcomingExams.map(e => normalizeSubject(e.title)));
+
+  return tasks.map(task => ({
+    ...task,
+    isUrgent: urgentSubjects.has(normalizeSubject(task.subject))
+  })).sort((a, b) => {
+    if (a.isUrgent && !b.isUrgent) return -1;
+    if (!a.isUrgent && b.isUrgent) return 1;
+    return 0;
   });
 }
 
 /**
- * Fetch all tasks (Calendar view) - Generates until end of June 2026
+ * Fetch tomorrow's tasks
  */
-export async function getAllTasks() {
-  const today = new Date();
-  const endOfJune = new Date(2026, 5, 30);
-  
-  await ensureTasksGenerated(today, endOfJune);
+export async function getTomorrowTasks() {
+  const tomorrow = addDays(new Date(), 1);
+  await ensureTasksGenerated(tomorrow, tomorrow);
+
+  const start = startOfDay(tomorrow);
+  const end = endOfDay(tomorrow);
 
   return prisma.task.findMany({
+    where: { 
+      date: { gte: start, lte: end },
+      isDeleted: false // Filter out deleted tasks
+    },
     include: { template: true },
     orderBy: { startTime: 'asc' }
   });
 }
 
 /**
- * Toggle task completion status
+ * Fetch all tasks (Calendar view)
+ */
+export async function getAllTasks() {
+  const today = new Date();
+  const endOfJune = new Date(2026, 5, 30);
+  await ensureTasksGenerated(today, endOfJune);
+
+  return prisma.task.findMany({
+    where: { isDeleted: false }, // Filter out deleted tasks
+    include: { template: true },
+    orderBy: { startTime: 'asc' }
+  });
+}
+
+/**
+ * Toggle task completion status (clears isMissed)
  */
 export async function toggleTaskDone(taskId: string, isDone: boolean) {
   await prisma.task.update({
     where: { id: taskId },
-    data: { isDone }
+    data: { 
+      isDone,
+      isMissed: isDone ? false : undefined // If marking done, clear missed
+    }
   });
   revalidatePath('/');
   revalidatePath('/history');
@@ -138,11 +158,46 @@ export async function toggleTaskDone(taskId: string, isDone: boolean) {
 }
 
 /**
- * Fetch completed tasks (History)
+ * Toggle task missed status (clears isDone)
  */
-export async function getCompletedTasks() {
+export async function toggleTaskMissed(taskId: string, isMissed: boolean) {
+  await prisma.task.update({
+    where: { id: taskId },
+    data: { 
+      isMissed,
+      isDone: isMissed ? false : undefined // If marking missed, clear done
+    }
+  });
+  revalidatePath('/');
+  revalidatePath('/history');
+  revalidatePath('/calendar');
+}
+
+/**
+ * Logic-based Deletion: Mark as isDeleted so it won't be regenerated
+ */
+export async function deleteTask(taskId: string) {
+  await prisma.task.update({
+    where: { id: taskId },
+    data: { isDeleted: true }
+  });
+  revalidatePath('/');
+  revalidatePath('/calendar');
+  revalidatePath('/history');
+}
+
+/**
+ * Fetch completed and missed tasks (History)
+ */
+export async function getHistoryTasks() {
   return prisma.task.findMany({
-    where: { isDone: true },
+    where: {
+      isDeleted: false,
+      OR: [
+        { isDone: true },
+        { isMissed: true }
+      ]
+    },
     include: { template: true },
     orderBy: { date: 'desc' }
   });
@@ -153,10 +208,7 @@ export async function getCompletedTasks() {
  */
 export async function getTemplates() {
   return prisma.scheduleTemplate.findMany({
-    orderBy: [
-      { dayOfWeek: 'asc' },
-      { startTime: 'asc' }
-    ]
+    orderBy: [{ dayOfWeek: 'asc' }, { startTime: 'asc' }]
   });
 }
 
@@ -184,7 +236,7 @@ export async function createTemplate(data: {
 }
 
 /**
- * Update an existing task (move day or change time)
+ * Update an existing task
  */
 export async function updateTask(taskId: string, data: { date?: Date, startTime?: string, endTime?: string }) {
   if (data.date) {
@@ -211,7 +263,6 @@ export async function getMarkedDays() {
  */
 export async function toggleMarkedDay(date: Date, isMarked: boolean) {
   const normalizedDate = startOfDay(date);
-  
   if (isMarked) {
     await prisma.markedDay.upsert({
       where: { date: normalizedDate },
@@ -219,9 +270,7 @@ export async function toggleMarkedDay(date: Date, isMarked: boolean) {
       create: { date: normalizedDate }
     });
   } else {
-    await prisma.markedDay.deleteMany({
-      where: { date: normalizedDate }
-    });
+    await prisma.markedDay.deleteMany({ where: { date: normalizedDate } });
   }
   revalidatePath('/calendar');
 }
@@ -231,19 +280,11 @@ export async function toggleMarkedDay(date: Date, isMarked: boolean) {
  */
 export async function syncStreak() {
   const today = startOfDay(new Date());
-  
-  let progress = await prisma.userProgress.findUnique({
-    where: { id: 'user-id' }
-  });
+  let progress = await prisma.userProgress.findUnique({ where: { id: 'user-id' } });
 
   if (!progress) {
     progress = await prisma.userProgress.create({
-      data: {
-        id: 'user-id',
-        currentStreak: 1,
-        longestStreak: 1,
-        lastActiveDate: today
-      }
+      data: { id: 'user-id', currentStreak: 1, longestStreak: 1, lastActiveDate: today }
     });
     return progress;
   }
@@ -255,28 +296,16 @@ export async function syncStreak() {
       where: { id: 'user-id' },
       data: { currentStreak: 1, lastActiveDate: today }
     });
-  } else if (isSameDay(lastDate, today)) {
-    // Already synced today
-  } else {
+  } else if (!isSameDay(lastDate, today)) {
     const diff = differenceInDays(today, lastDate);
-    
     let newStreak = 1;
-    if (diff === 1) {
-      newStreak = progress.currentStreak + 1;
-    }
-
+    if (diff === 1) newStreak = progress.currentStreak + 1;
     const newLongest = Math.max(newStreak, progress.longestStreak);
-
     progress = await prisma.userProgress.update({
       where: { id: 'user-id' },
-      data: {
-        currentStreak: newStreak,
-        longestStreak: newLongest,
-        lastActiveDate: today
-      }
+      data: { currentStreak: newStreak, longestStreak: newLongest, lastActiveDate: today }
     });
   }
-
   return progress;
 }
 
@@ -291,34 +320,23 @@ export async function updateTemplate(id: string, data: {
   deadlineDay?: string;
   type?: string;
 }) {
-  await prisma.scheduleTemplate.update({
-    where: { id },
-    data
-  });
+  await prisma.scheduleTemplate.update({ where: { id }, data });
   revalidatePath('/manage');
 }
 
 /**
- * Fetch unique subjects from templates (Normalized to group revisions)
+ * Fetch unique subjects from templates
  */
 export async function getUniqueSubjects() {
-  const templates = await prisma.scheduleTemplate.findMany({
-    select: { subject: true }
-  });
-  
-  // Normalize and deduplicate
+  const templates = await prisma.scheduleTemplate.findMany({ select: { subject: true } });
   const normalizedSet = new Set(templates.map(t => normalizeSubject(t.subject)));
-  
   return Array.from(normalizedSet).sort();
 }
 
 /**
- * Fetch resources for a subject (and its revisions)
+ * Fetch resources for a subject
  */
 export async function getResources(subject: string) {
-  // We need to fetch resources where subject matches or normalization matches
-  // However, it's safer to store resources using the normalized name going forward.
-  // For now, let's fetch by the provided subject (which will be normalized in the UI).
   return prisma.resource.findMany({
     where: { subject: normalizeSubject(subject) },
     orderBy: { createdAt: 'desc' }
@@ -326,14 +344,13 @@ export async function getResources(subject: string) {
 }
 
 /**
- * Add a new resource (link or file)
+ * Add a new resource
  */
 export async function addResource(formData: FormData) {
   const rawSubject = formData.get('subject') as string;
-  const subject = normalizeSubject(rawSubject); // Always store normalized
+  const subject = normalizeSubject(rawSubject);
   const title = formData.get('title') as string;
   const type = formData.get('type') as 'LINK' | 'FILE';
-  
   let url = '';
 
   if (type === 'LINK') {
@@ -341,22 +358,15 @@ export async function addResource(formData: FormData) {
   } else {
     const file = formData.get('file') as File;
     if (!file) throw new Error('No file uploaded');
-
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
-
-    // Create a unique filename
     const filename = `${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.]/g, '_')}`;
     const path = join(process.cwd(), 'public', 'uploads', filename);
-    
     await writeFile(path, buffer);
     url = `/uploads/${filename}`;
   }
 
-  await prisma.resource.create({
-    data: { subject, title, type, url }
-  });
-
+  await prisma.resource.create({ data: { subject, title, type, url } });
   revalidatePath(`/resources/${encodeURIComponent(subject)}`);
   revalidatePath(`/focus`);
 }
@@ -366,52 +376,37 @@ export async function addResource(formData: FormData) {
  */
 export async function deleteResource(id: string, subject: string) {
   const resource = await prisma.resource.findUnique({ where: { id } });
-  
   if (resource && resource.type === 'FILE') {
-    // Try to delete local file
     try {
       const filename = resource.url.replace('/uploads/', '');
       const path = join(process.cwd(), 'public', 'uploads', filename);
       await unlink(path);
-    } catch (e) {
-      console.error('Failed to delete file from disk', e);
-    }
+    } catch (e) { console.error(e); }
   }
-
   await prisma.resource.delete({ where: { id } });
   revalidatePath(`/resources/${encodeURIComponent(subject)}`);
   revalidatePath(`/focus`);
 }
 
 /**
- * Fetch a specific task for focus mode
+ * Fetch a specific task
  */
 export async function getTaskById(id: string) {
-  return prisma.task.findUnique({
-    where: { id },
-    include: { template: true }
-  });
+  return prisma.task.findUnique({ where: { id }, include: { template: true } });
 }
 
 /**
- * Fetch all upcoming exam events
+ * Fetch upcoming exam events
  */
 export async function getEvents() {
-  return prisma.examEvent.findMany({
-    orderBy: { date: 'asc' }
-  });
+  return prisma.examEvent.findMany({ orderBy: { date: 'asc' } });
 }
 
 /**
- * Create a new exam event
+ * Create an exam event
  */
 export async function createEvent(data: { title: string, date: Date, priority: string }) {
-  await prisma.examEvent.create({
-    data: {
-      ...data,
-      date: startOfDay(data.date)
-    }
-  });
+  await prisma.examEvent.create({ data: { ...data, date: startOfDay(data.date) } });
   revalidatePath('/');
 }
 
@@ -424,34 +419,64 @@ export async function deleteEvent(id: string) {
 }
 
 /**
- * Create a one-off task (Quick Add)
+ * Create a quick task
  */
-export async function createQuickTask(data: {
-  subject: string,
-  startTime: string,
-  endTime: string,
-  type: string,
-  date?: Date
-}) {
+export async function createQuickTask(data: { subject: string, startTime: string, endTime: string, type: string, date?: Date }) {
   const date = data.date ? startOfDay(data.date) : startOfDay(new Date());
-  
   await prisma.task.create({
-    data: {
-      subject: data.subject,
-      startTime: data.startTime,
-      endTime: data.endTime,
-      type: data.type,
-      date: date,
-      isDone: false
-    }
+    data: { subject: data.subject, startTime: data.startTime, endTime: data.endTime, type: data.type, date, isDone: false, isMissed: false, isDeleted: false }
   });
-
   revalidatePath('/');
   revalidatePath('/calendar');
 }
 
 /**
- * DEBUG/MAINTENANCE: Clear all tasks to resolve duplicates
+ * Weekly Summaries Logic
+ */
+export async function getWeeklySummaries() {
+  return prisma.weeklySummary.findMany({ orderBy: { startDate: 'desc' } });
+}
+
+export async function generateWeeklySummary(mondayDate: Date) {
+  const start = startOfDay(mondayDate);
+  const end = endOfDay(addDays(start, 6));
+
+  const weekTasks = await prisma.task.findMany({ where: { date: { gte: start, lte: end }, isDeleted: false } });
+  if (weekTasks.length === 0) return null;
+
+  const completed = weekTasks.filter(t => t.isDone);
+  const ratio = completed.length / weekTasks.length;
+  let grade = 'F';
+  if (ratio >= 0.95) grade = 'A+';
+  else if (ratio >= 0.9) grade = 'A';
+  else if (ratio >= 0.8) grade = 'B';
+  else if (ratio >= 0.7) grade = 'C';
+  else if (ratio >= 0.6) grade = 'D';
+
+  const totalMinutes = weekTasks.reduce((acc, t) => {
+    const [sH, sM] = t.startTime.split(':').map(Number);
+    const [eH, eM] = t.endTime.split(':').map(Number);
+    return acc + ((eH * 60 + eM) - (sH * 60 + sM));
+  }, 0);
+
+  const breakdown: Record<string, number> = {};
+  weekTasks.forEach(t => {
+    const s = normalizeSubject(t.subject);
+    const [sH, sM] = t.startTime.split(':').map(Number);
+    const [eH, eM] = t.endTime.split(':').map(Number);
+    const mins = (eH * 60 + eM) - (sH * 60 + sM);
+    breakdown[s] = (breakdown[s] || 0) + mins;
+  });
+
+  return prisma.weeklySummary.upsert({
+    where: { startDate_endDate: { startDate: start, endDate: end } },
+    update: { grade, totalMinutes, subjectBreakdown: JSON.stringify(breakdown) },
+    create: { startDate: start, endDate: end, grade, totalMinutes, subjectBreakdown: JSON.stringify(breakdown) }
+  });
+}
+
+/**
+ * DEBUG/MAINTENANCE: Clear all tasks
  */
 export async function clearAllTasks() {
   await prisma.task.deleteMany();

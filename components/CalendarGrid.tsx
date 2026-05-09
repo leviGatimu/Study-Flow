@@ -2,18 +2,21 @@
 
 import { useState, useTransition } from 'react';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, addMonths, subMonths, isToday } from 'date-fns';
-import { ChevronLeft, ChevronRight, Clock, Edit2, Bookmark, BookmarkCheck } from 'lucide-react';
+import { Plus, ChevronLeft, ChevronRight, Clock, Edit2, Bookmark, BookmarkCheck, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { TaskCheckbox } from '@/components/TaskCheckbox';
-import { toggleMarkedDay, updateTask } from '@/lib/actions';
+import { toggleMarkedDay, updateTask, deleteTask } from '@/lib/actions';
+import { QuickAddForm } from '@/components/QuickAddForm';
+import { ConfirmModal } from '@/components/ConfirmModal';
 
 type TaskType = {
   id: string;
   subject: string;
   isDone: boolean;
+  isMissed: boolean;
   type: string;
   startTime: string;
   endTime: string;
@@ -30,11 +33,11 @@ export function CalendarGrid({ tasks, markedDays = [] }: { tasks: TaskType[], ma
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
   const monthStart = startOfMonth(currentDate);
   const monthEnd = endOfMonth(monthStart);
-  
   const days = eachDayOfInterval({ start: monthStart, end: monthEnd });
 
   // Handle filling the start of the week
@@ -66,39 +69,56 @@ export function CalendarGrid({ tasks, markedDays = [] }: { tasks: TaskType[], ma
     });
   };
 
+  const onConfirmDelete = () => {
+    if (!deleteConfirmId) return;
+    startTransition(async () => {
+      await deleteTask(deleteConfirmId);
+      setDeleteConfirmId(null);
+    });
+  };
+
   return (
-    <div className="flex flex-col h-full bg-card rounded-3xl border shadow-sm overflow-hidden">
+    <div className="flex flex-col h-full bg-card rounded-[32px] border border-border/60 shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-500">
+      <ConfirmModal 
+        isOpen={!!deleteConfirmId}
+        onClose={() => setDeleteConfirmId(null)}
+        onConfirm={onConfirmDelete}
+        title="Remove Session?"
+        description="This will permanently remove this study session from your calendar."
+        isPending={isPending}
+      />
+
       {/* Calendar Header */}
-      <div className="flex items-center justify-between p-6 border-b shrink-0">
-        <h2 className="text-3xl font-heading font-extrabold text-foreground tracking-tight">
+      <div className="flex items-center justify-between p-8 border-b bg-muted/10 shrink-0">
+        <h2 className="text-4xl font-heading font-black text-foreground tracking-tighter">
           {format(currentDate, 'MMMM yyyy')}
         </h2>
         <div className="flex items-center space-x-4">
-          <Button variant="outline" className="rounded-full bg-background border hover:bg-secondary active:scale-95 transition-all shadow-sm font-bold" onClick={goToday}>
+          <Button variant="outline" className="rounded-2xl bg-background border hover:bg-secondary active:scale-95 transition-all shadow-sm font-bold px-6 h-12" onClick={goToday}>
             Today
           </Button>
-          <div className="flex items-center space-x-1 bg-background rounded-full p-1 border shadow-sm">
-            <Button variant="ghost" size="icon" className="rounded-full h-8 w-8 hover:bg-secondary active:scale-95 transition-all" onClick={prevMonth}>
-              <ChevronLeft className="h-4 w-4" />
+          <div className="flex items-center space-x-1 bg-background rounded-2xl p-1.5 border shadow-sm">
+            <Button variant="ghost" size="icon" className="rounded-xl h-10 w-10 hover:bg-secondary active:scale-95 transition-all" onClick={prevMonth}>
+              <ChevronLeft className="h-5 w-5" />
             </Button>
-            <Button variant="ghost" size="icon" className="rounded-full h-8 w-8 hover:bg-secondary active:scale-95 transition-all" onClick={nextMonth}>
-              <ChevronRight className="h-4 w-4" />
+            <Button variant="ghost" size="icon" className="rounded-xl h-10 w-10 hover:bg-secondary active:scale-95 transition-all" onClick={nextMonth}>
+              <ChevronRight className="h-5 w-5" />
             </Button>
           </div>
         </div>
       </div>
 
       {/* Days of Week */}
-      <div className="grid grid-cols-7 bg-muted/30 py-3 border-b shrink-0">
+      <div className="grid grid-cols-7 bg-muted/30 border-b shrink-0">
         {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
-          <div key={day} className="text-center text-sm font-bold text-muted-foreground uppercase tracking-widest">{day}</div>
+          <div key={day} className="py-4 text-center text-xs font-black text-muted-foreground uppercase tracking-[0.2em]">{day}</div>
         ))}
       </div>
 
       {/* Grid */}
-      <div className="grid grid-cols-7 flex-1 auto-rows-fr bg-border gap-px overflow-y-auto min-h-0">
+      <div className="grid grid-cols-7 flex-1 bg-border/40 gap-px overflow-y-auto min-h-0">
         {prefixDays.map((_, i) => (
-          <div key={`prefix-${i}`} className="bg-card/50 p-2" />
+          <div key={`prefix-${i}`} className="bg-muted/5 min-h-[140px]" />
         ))}
         {days.map((date) => {
           const dayTasks = tasks.filter(t => isSameDay(new Date(t.date), date));
@@ -109,36 +129,45 @@ export function CalendarGrid({ tasks, markedDays = [] }: { tasks: TaskType[], ma
             <div 
               key={date.toString()} 
               onClick={() => handleDayClick(date)}
-              className={`bg-card p-3 sm:p-4 cursor-pointer transition-all duration-200 hover:bg-secondary/60 flex flex-col space-y-3 relative overflow-hidden group min-h-[160px] 
-                ${today ? 'ring-2 ring-inset ring-primary bg-primary/5' : ''}
-                ${isMarked ? 'bg-destructive/5 ring-1 ring-inset ring-destructive/30 hover:bg-destructive/10' : ''}
+              className={`bg-card p-4 cursor-pointer transition-all duration-300 hover:bg-muted/50 flex flex-col space-y-4 relative overflow-hidden group min-h-[140px]
+                ${today ? 'bg-primary/[0.03]' : ''}
+                ${isMarked ? 'bg-destructive/[0.03]' : ''}
               `}
             >
-              <div className="flex justify-between items-start">
-                <span className={`text-base font-heading font-extrabold w-10 h-10 flex items-center justify-center rounded-full transition-colors 
-                  ${today ? 'bg-primary text-primary-foreground shadow-md shadow-primary/20' : 
-                    isMarked ? 'bg-destructive/10 text-destructive' : 'text-foreground/70 group-hover:text-foreground'}`}>
+              <div className="absolute top-0 left-0 w-full h-1 flex gap-px">
+                {today && <div className="flex-1 bg-primary h-full" />}
+                {isMarked && <div className="flex-1 bg-destructive h-full" />}
+              </div>
+
+              <div className="flex justify-between items-center">
+                <span className={`text-xl font-heading font-black tracking-tighter w-10 h-10 flex items-center justify-center rounded-2xl transition-all
+                  ${today ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/30 scale-110' : 
+                    isMarked ? 'bg-destructive text-white shadow-lg shadow-destructive/30' : 
+                    'text-foreground group-hover:text-primary group-hover:bg-primary/10'}`}>
                   {format(date, 'd')}
                 </span>
                 {dayTasks.length > 0 && (
-                  <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${isMarked ? 'bg-destructive/20 text-destructive' : 'bg-muted text-muted-foreground'}`}>
-                    {dayTasks.length}
+                  <span className={`text-[10px] font-black px-2.5 py-1 rounded-full uppercase tracking-tighter shadow-sm border
+                    ${isMarked ? 'bg-destructive/10 text-destructive border-destructive/20' : 'bg-muted text-muted-foreground border-border/40'}`}>
+                    {dayTasks.length} {dayTasks.length === 1 ? 'Task' : 'Tasks'}
                   </span>
                 )}
               </div>
               
-              <div className="flex flex-col gap-1.5 mt-1 z-10 flex-1 min-h-0">
-                {dayTasks.slice(0, 3).map(task => {
+              <div className="flex flex-col gap-2 z-10 flex-1">
+                {dayTasks.slice(0, 2).map(task => {
                   const isHomework = task.type === 'HOMEWORK';
                   return (
                     <div 
                       key={task.id} 
-                      className={`text-[11px] sm:text-xs truncate px-2.5 py-1 rounded-lg font-bold transition-all duration-200 border
+                      className={`text-[10px] truncate px-3 py-1.5 rounded-xl font-black uppercase tracking-wider transition-all duration-300 border shadow-sm
                         ${task.isDone 
-                          ? 'bg-success/10 text-success border-success/20 line-through opacity-60' 
-                          : isHomework 
-                            ? 'bg-primary/10 text-primary border-primary/20' 
-                            : 'bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-500/20'
+                          ? 'bg-success/10 text-success border-success/20 line-through opacity-50 scale-95' 
+                          : task.isMissed
+                            ? 'bg-destructive/10 text-destructive border-destructive/20 line-through opacity-50 scale-95'
+                            : isHomework 
+                              ? 'bg-primary/5 text-primary border-primary/10 hover:bg-primary/10' 
+                              : 'bg-orange-500/5 text-orange-600 border-orange-500/10 hover:bg-orange-500/10'
                         }`}
                       title={task.subject}
                     >
@@ -146,9 +175,9 @@ export function CalendarGrid({ tasks, markedDays = [] }: { tasks: TaskType[], ma
                     </div>
                   );
                 })}
-                {dayTasks.length > 3 && (
-                  <div className={`text-xs font-bold px-1 mt-1 ${isMarked ? 'text-destructive/70' : 'text-muted-foreground'}`}>
-                    + {dayTasks.length - 3} more
+                {dayTasks.length > 2 && (
+                  <div className={`text-[10px] font-black uppercase tracking-widest px-2 mt-auto text-muted-foreground/60`}>
+                    + {dayTasks.length - 2} more
                   </div>
                 )}
               </div>
@@ -159,96 +188,118 @@ export function CalendarGrid({ tasks, markedDays = [] }: { tasks: TaskType[], ma
 
       {/* Day Detail Modal */}
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-        <DialogContent className={`sm:max-w-lg rounded-3xl p-0 overflow-hidden border shadow-xl animate-in fade-in zoom-in-95 duration-200 ${isSelectedDateMarked ? 'border-destructive/30' : ''}`}>
-          <div className={`bg-card ${isSelectedDateMarked ? 'bg-destructive/5' : ''}`}>
-            <DialogHeader className="p-6 border-b bg-muted/20">
+        <DialogContent className={`sm:max-w-3xl w-[90vw] rounded-[40px] p-0 overflow-hidden border-none shadow-[0_32px_64px_-12px_rgba(0,0,0,0.14)] animate-in fade-in zoom-in-95 duration-300`}>
+          <div className="bg-card">
+            <DialogHeader className="p-8 border-b bg-muted/20">
               <div className="flex items-center justify-between">
-                <DialogTitle className="text-2xl font-heading font-extrabold text-foreground flex items-center gap-3">
-                  <span>{selectedDate ? format(selectedDate, 'EEEE, MMMM do') : ''}</span>
-                  {selectedDate && isToday(selectedDate) && (
-                    <span className="text-xs tracking-widest uppercase bg-primary text-primary-foreground px-3 py-1 rounded-full shadow-sm">Today</span>
-                  )}
-                </DialogTitle>
+                <div className="space-y-1">
+                   <DialogTitle className="text-3xl font-heading font-black text-foreground tracking-tighter leading-none">
+                    {selectedDate ? format(selectedDate, 'EEEE') : ''}
+                  </DialogTitle>
+                  <p className="text-muted-foreground font-bold uppercase tracking-widest text-xs">
+                    {selectedDate ? format(selectedDate, 'MMMM do, yyyy') : ''}
+                  </p>
+                </div>
                 
-                {/* Mark Day Toggle */}
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  onClick={handleToggleMark}
-                  disabled={isPending}
-                  className={`rounded-full px-3 transition-colors ${isSelectedDateMarked ? 'bg-destructive/20 text-destructive hover:bg-destructive/30 hover:text-destructive' : 'text-muted-foreground hover:text-destructive hover:bg-destructive/10'}`}
-                >
-                  {isSelectedDateMarked ? <BookmarkCheck className="w-4 h-4 mr-2" /> : <Bookmark className="w-4 h-4 mr-2" />}
-                  {isSelectedDateMarked ? 'Marked' : 'Mark Day'}
-                </Button>
+                <div className="flex items-center gap-2">
+                  {selectedDate && (
+                    <QuickAddForm 
+                      initialDate={selectedDate} 
+                      trigger={
+                        <Button variant="outline" size="sm" className="rounded-2xl h-10 px-4 font-black text-[10px] uppercase tracking-widest hover:bg-primary/10 hover:text-primary border-border/60 mr-2">
+                          <Plus className="w-3.5 h-3.5 mr-2" /> Add Task
+                        </Button>
+                      }
+                    />
+                  )}
+                  {selectedDate && isToday(selectedDate) && (
+                    <span className="text-[10px] font-black tracking-widest uppercase bg-primary text-primary-foreground px-4 py-2 rounded-2xl shadow-lg shadow-primary/20 mr-2">Today</span>
+                  )}
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={handleToggleMark}
+                    disabled={isPending}
+                    className={`rounded-2xl h-10 px-4 transition-all font-black text-[10px] uppercase tracking-widest ${isSelectedDateMarked ? 'bg-destructive/10 text-destructive hover:bg-destructive/20' : 'bg-muted/50 text-muted-foreground hover:bg-destructive/10 hover:text-destructive'}`}
+                  >
+                    {isSelectedDateMarked ? <BookmarkCheck className="w-4 h-4 mr-2" /> : <Bookmark className="w-4 h-4 mr-2" />}
+                    {isSelectedDateMarked ? 'Unmark' : 'Mark Day'}
+                  </Button>
+                </div>
               </div>
             </DialogHeader>
             
-            <div className="p-6 max-h-[60vh] overflow-y-auto">
+            <div className="p-8 max-h-[60vh] overflow-y-auto space-y-6">
               {selectedTasks.length === 0 ? (
-                <div className="bg-muted border p-6 rounded-2xl text-center text-muted-foreground font-medium shadow-sm">
-                  No tasks scheduled for this day.
+                <div className="py-20 border-2 border-dashed border-border/40 rounded-[32px] flex flex-col items-center justify-center text-center text-muted-foreground bg-muted/5">
+                  <p className="font-bold uppercase tracking-widest text-xs opacity-50">No activity scheduled</p>
                 </div>
               ) : (
-                <div className="space-y-3">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {selectedTasks.map((task, index) => {
                     const isHomework = task.type === 'HOMEWORK';
                     const isEditing = editingTaskId === task.id;
 
                     if (isEditing) {
                       return (
-                        <EditTaskForm 
-                          key={task.id} 
-                          task={task} 
-                          onClose={() => setEditingTaskId(null)} 
-                        />
+                        <div key={task.id} className="md:col-span-2">
+                          <EditTaskForm 
+                            task={task} 
+                            onClose={() => setEditingTaskId(null)} 
+                          />
+                        </div>
                       );
                     }
 
                     return (
                       <div 
                         key={task.id} 
-                        className={`relative overflow-hidden bg-card border p-4 rounded-2xl transition-all duration-300 hover:shadow-sm animate-in fade-in slide-in-from-bottom-4
+                        className={`relative overflow-hidden bg-card border p-6 rounded-[32px] transition-all duration-300 hover:shadow-xl flex flex-col
                           ${task.isDone 
                             ? 'bg-success/5 border-success/30 opacity-70' 
-                            : 'border-border'
+                            : task.isMissed
+                              ? 'bg-destructive/5 border-destructive/30 opacity-70'
+                              : 'border-border/60'
                           }`}
                         style={{ animationDelay: `${index * 50}ms`, animationFillMode: 'both' }}
                       >
-                        <div className="flex items-center justify-between relative z-10 gap-4">
-                          <div className="flex items-start space-x-4">
-                            <div className="scale-110 transition-transform active:scale-90 mt-0.5">
-                              <TaskCheckbox taskId={task.id} isDone={task.isDone} />
-                            </div>
-                            <div>
-                              <p className={`font-heading font-bold text-lg transition-colors ${task.isDone ? 'line-through text-success' : 'text-foreground'}`}>
+                        <div className="flex items-start justify-between relative z-10 gap-4 mb-4">
+                          <div className="flex items-start gap-4">
+                             <TaskCheckbox taskId={task.id} isDone={task.isDone} isMissed={task.isMissed} />
+                             <p className={`font-heading font-black text-xl tracking-tight transition-colors mt-0.5 ${task.isDone ? 'line-through text-success' : task.isMissed ? 'line-through text-destructive' : 'text-foreground'}`}>
                                 {task.subject}
                               </p>
-                              <div className="flex items-center gap-2 mt-1">
-                                <Clock className="w-3.5 h-3.5 text-muted-foreground" />
-                                <p className="text-sm font-medium text-muted-foreground">
-                                  {task.startTime} - {task.endTime}
-                                </p>
-                              </div>
-                            </div>
                           </div>
-                          <div className="flex flex-col items-end gap-2 shrink-0">
-                            <span className={`text-[10px] font-extrabold px-3 py-1 rounded-full uppercase tracking-wider
-                              ${task.isDone 
-                                ? 'bg-success/20 text-success' 
-                                : isHomework 
-                                  ? 'bg-primary/10 text-primary' 
-                                  : 'bg-orange-500/10 text-orange-600 dark:text-orange-400'
-                              }`}>
-                              {task.isDone ? 'DONE' : task.type}
+                          <span className={`text-[10px] font-black px-3 py-1 rounded-xl uppercase tracking-widest border
+                            ${isHomework ? 'bg-primary/5 text-primary border-primary/10' : 'bg-orange-500/5 text-orange-600 border-orange-500/10'}`}>
+                            {task.type}
+                          </span>
+                        </div>
+
+                        <div className="flex items-center justify-between mt-auto pt-4 border-t border-border/40 relative z-10">
+                          <div className="bg-muted px-3 py-1.5 rounded-xl border border-border/40 flex items-center gap-2 shadow-sm">
+                            <Clock className="w-3.5 h-3.5 text-primary" />
+                            <span className="text-xs font-black text-foreground">
+                              {task.startTime} — {task.endTime}
                             </span>
+                          </div>
+
+                          <div className="flex items-center gap-1">
+                             <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              onClick={() => setEditingTaskId(task.id)}
+                              className="h-9 w-9 rounded-xl text-muted-foreground hover:bg-primary/10 hover:text-primary transition-all"
+                            >
+                              <Edit2 className="w-4 h-4" />
+                            </Button>
                             <Button 
                               variant="ghost" 
-                              size="sm" 
-                              onClick={() => setEditingTaskId(task.id)}
-                              className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground"
+                              size="icon" 
+                              onClick={() => setDeleteConfirmId(task.id)}
+                              className="h-9 w-9 rounded-xl text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-all"
                             >
-                              <Edit2 className="w-3 h-3 mr-1.5" /> Edit
+                              <Trash2 className="w-4 h-4" />
                             </Button>
                           </div>
                         </div>
@@ -274,12 +325,11 @@ function EditTaskForm({ task, onClose }: { task: TaskType, onClose: () => void }
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    startTransition(() => {
-      // Need to adjust date format to local midnight properly
+    startTransition(async () => {
       const dateParts = dateStr.split('-');
       const newDate = new Date(parseInt(dateParts[0]), parseInt(dateParts[1]) - 1, parseInt(dateParts[2]));
       
-      updateTask(task.id, {
+      await updateTask(task.id, {
         date: newDate,
         startTime,
         endTime
@@ -289,47 +339,50 @@ function EditTaskForm({ task, onClose }: { task: TaskType, onClose: () => void }
   };
 
   return (
-    <div className="bg-muted/30 border border-border p-4 rounded-2xl animate-in zoom-in-95 duration-200">
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <h4 className="font-heading font-bold text-foreground">{task.subject} <span className="text-sm font-normal text-muted-foreground">(Edit)</span></h4>
+    <div className="bg-muted/30 border border-border/60 p-6 rounded-[32px] animate-in zoom-in-95 duration-200">
+      <form onSubmit={handleSubmit} className="space-y-6">
+        <div className="flex items-center justify-between border-b border-border/40 pb-4">
+          <h4 className="font-heading font-black text-xl tracking-tight text-foreground">{task.subject}</h4>
+          <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Editing Session</span>
+        </div>
         
         <div className="space-y-2">
-          <Label className="text-xs font-bold text-muted-foreground uppercase">Date</Label>
+          <Label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] ml-1">Move to Date</Label>
           <Input 
             type="date" 
             required 
             value={dateStr} 
             onChange={e => setDateStr(e.target.value)}
-            className="h-9 rounded-xl bg-background"
+            className="h-12 rounded-2xl bg-background font-bold border-border/60 focus:ring-primary/20"
           />
         </div>
         
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-2 gap-4">
           <div className="space-y-2">
-            <Label className="text-xs font-bold text-muted-foreground uppercase">Start Time</Label>
+            <Label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] ml-1">Start Time</Label>
             <Input 
               type="time" 
               required 
               value={startTime} 
               onChange={e => setStartTime(e.target.value)}
-              className="h-9 rounded-xl bg-background"
+              className="h-12 rounded-2xl bg-background font-bold border-border/60 focus:ring-primary/20"
             />
           </div>
           <div className="space-y-2">
-            <Label className="text-xs font-bold text-muted-foreground uppercase">End Time</Label>
+            <Label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] ml-1">End Time</Label>
             <Input 
               type="time" 
               required 
               value={endTime} 
               onChange={e => setEndTime(e.target.value)}
-              className="h-9 rounded-xl bg-background"
+              className="h-12 rounded-2xl bg-background font-bold border-border/60 focus:ring-primary/20"
             />
           </div>
         </div>
 
-        <div className="flex items-center justify-end gap-2 pt-2">
-          <Button variant="ghost" size="sm" type="button" onClick={onClose} disabled={isPending} className="rounded-xl">Cancel</Button>
-          <Button size="sm" type="submit" disabled={isPending} className="rounded-xl font-bold shadow-sm">Save Changes</Button>
+        <div className="flex items-center gap-3 pt-2">
+          <Button variant="ghost" type="button" onClick={onClose} disabled={isPending} className="flex-1 h-12 rounded-2xl font-bold">Cancel</Button>
+          <Button type="submit" disabled={isPending} className="flex-[2] h-12 rounded-2xl font-heading font-black shadow-lg shadow-primary/20">Save Changes</Button>
         </div>
       </form>
     </div>

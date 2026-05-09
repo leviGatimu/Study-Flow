@@ -1,15 +1,16 @@
-import { getCompletedTasks, syncStreak } from '@/lib/actions';
+import { getHistoryTasks, syncStreak } from '@/lib/actions';
 import { HistoryCharts } from '@/components/HistoryCharts';
 import { format } from 'date-fns';
-import { CheckCircle2, BookOpen, Repeat, Trophy } from 'lucide-react';
+import { CheckCircle2, BookOpen, Repeat, Trophy, XCircle } from 'lucide-react';
 
 export default async function HistoryPage() {
-  const tasks = await getCompletedTasks();
+  const tasks = await getHistoryTasks();
   const userProgress = await syncStreak();
 
-  const totalCompleted = tasks.length;
-  const homeworks = tasks.filter(t => t.type === 'HOMEWORK').length;
-  const revisions = tasks.filter(t => t.type === 'REVISION').length;
+  const totalActioned = tasks.length;
+  const homeworks = tasks.filter(t => t.isDone && t.type === 'HOMEWORK').length;
+  const revisions = tasks.filter(t => t.isDone && t.type === 'REVISION').length;
+  const missedCount = tasks.filter(t => t.isMissed).length;
 
   return (
     <div className="space-y-12 max-w-[1600px] mx-auto animate-in fade-in duration-500 pb-16">
@@ -23,22 +24,22 @@ export default async function HistoryPage() {
       {/* Stats Overview */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatCard 
-          label="Total Completed" 
-          value={totalCompleted} 
-          icon={<CheckCircle2 className="w-6 h-6 text-green-500" />} 
-          description="Tasks finished so far"
-        />
-        <StatCard 
-          label="Homeworks" 
+          label="Homeworks Done" 
           value={homeworks} 
           icon={<BookOpen className="w-6 h-6 text-blue-500" />} 
           description="Assignments completed"
         />
         <StatCard 
-          label="Revisions" 
+          label="Revisions Done" 
           value={revisions} 
           icon={<Repeat className="w-6 h-6 text-orange-500" />} 
           description="Study sessions completed"
+        />
+        <StatCard 
+          label="Tasks Missed" 
+          value={missedCount} 
+          icon={<XCircle className="w-6 h-6 text-red-500" />} 
+          description="Sessions you marked missed"
         />
         <StatCard 
           label="Best Streak" 
@@ -53,19 +54,19 @@ export default async function HistoryPage() {
 
       {/* Detailed Log */}
       <div className="space-y-6">
-        <h2 className="text-3xl font-heading font-bold tracking-tight">Completion Log</h2>
+        <h2 className="text-3xl font-heading font-bold tracking-tight">Performance Log</h2>
         <div className="bg-card border border-border/60 shadow-sm rounded-3xl overflow-hidden">
           <div className="hidden sm:grid grid-cols-12 gap-4 p-6 text-xs font-bold text-muted-foreground uppercase tracking-widest border-b border-border/40 bg-muted/30">
             <div className="col-span-3">Date</div>
             <div className="col-span-4">Subject</div>
             <div className="col-span-2">Type</div>
-            <div className="col-span-3">Time Range</div>
+            <div className="col-span-3">Status</div>
           </div>
 
           <div className="divide-y divide-border/40">
             {tasks.length === 0 ? (
               <div className="text-center py-20 text-muted-foreground font-medium">
-                No tasks completed yet. Your journey begins today!
+                No history recorded yet. Start actioning tasks on your dashboard!
               </div>
             ) : (
               tasks.map((task) => (
@@ -77,14 +78,21 @@ export default async function HistoryPage() {
                     {task.subject}
                   </div>
                   <div className="col-span-2">
-                    <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-bold ${task.type === 'HOMEWORK' ? 'bg-primary/10 text-primary' : 'bg-orange-500/10 text-orange-600'}`}>
+                    <span className={`inline-flex items-center px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border
+                      ${task.type === 'HOMEWORK' ? 'bg-primary/5 text-primary border-primary/10' : 'bg-orange-500/5 text-orange-600 border-orange-500/10'}`}>
                       {task.type}
                     </span>
                   </div>
-                  <div className="col-span-3 text-sm font-medium text-muted-foreground flex items-center gap-2">
-                    <span className="bg-muted px-2.5 py-1 rounded-md border text-[11px] font-bold">
-                      {task.startTime} — {task.endTime}
-                    </span>
+                  <div className="col-span-3">
+                    <div className={cn(
+                      "inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-tighter border shadow-sm",
+                      task.isDone 
+                        ? "bg-success/10 text-success border-success/20" 
+                        : "bg-destructive/10 text-destructive border-destructive/20"
+                    )}>
+                      {task.isDone ? <CheckCircle2 className="w-3.5 h-3.5" /> : <XCircle className="w-3.5 h-3.5" />}
+                      {task.isDone ? 'COMPLETED' : 'MISSED'}
+                    </div>
                   </div>
                 </div>
               ))
@@ -94,6 +102,10 @@ export default async function HistoryPage() {
       </div>
     </div>
   );
+}
+
+function cn(...inputs: any[]) {
+  return inputs.filter(Boolean).join(' ');
 }
 
 function StatCard({ label, value, icon, description }: { label: string, value: string | number, icon: React.ReactNode, description: string }) {

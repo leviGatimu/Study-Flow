@@ -8,8 +8,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { createQuickTask } from '@/lib/actions';
+import { format } from 'date-fns';
 
-export function QuickAddForm() {
+export function QuickAddForm({ initialDate, trigger }: { initialDate?: Date, trigger?: React.ReactNode }) {
   const [open, setOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
 
@@ -17,14 +18,27 @@ export function QuickAddForm() {
     subject: '',
     startTime: '',
     endTime: '',
-    type: 'HOMEWORK'
+    type: 'HOMEWORK',
+    date: initialDate ? format(initialDate, 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd')
   });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     startTransition(async () => {
-      await createQuickTask(formData);
-      setFormData({ subject: '', startTime: '', endTime: '', type: 'HOMEWORK' });
+      const dateParts = formData.date.split('-');
+      const selectedDate = new Date(parseInt(dateParts[0]), parseInt(dateParts[1]) - 1, parseInt(dateParts[2]));
+      
+      await createQuickTask({
+        ...formData,
+        date: selectedDate
+      });
+      setFormData({ 
+        subject: '', 
+        startTime: '', 
+        endTime: '', 
+        type: 'HOMEWORK',
+        date: initialDate ? format(initialDate, 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd')
+      });
       setOpen(false);
     });
   };
@@ -32,14 +46,16 @@ export function QuickAddForm() {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline" className="rounded-full gap-2 font-bold hover:bg-primary/5 hover:text-primary transition-all active:scale-95 shadow-sm border-border/60">
-          <Plus className="w-4 h-4" /> Quick Add Assignment
-        </Button>
+        {trigger || (
+          <Button variant="outline" className="rounded-full gap-2 font-bold hover:bg-primary/5 hover:text-primary transition-all active:scale-95 shadow-sm border-border/60">
+            <Plus className="w-4 h-4" /> Quick Add Assignment
+          </Button>
+        )}
       </DialogTrigger>
       <DialogContent className="rounded-[32px] sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="text-2xl font-heading font-black">Quick Add Task</DialogTitle>
-          <p className="text-sm text-muted-foreground">Add a one-off task for today.</p>
+          <p className="text-sm text-muted-foreground">Add a one-off task for {initialDate ? format(initialDate, 'MMMM do') : 'today'}.</p>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-6 pt-4">
           <div className="space-y-2">
@@ -52,6 +68,19 @@ export function QuickAddForm() {
               className="rounded-xl h-12 font-bold"
             />
           </div>
+
+          {!initialDate && (
+            <div className="space-y-2">
+              <Label className="font-bold text-xs uppercase tracking-widest text-muted-foreground ml-1">Date</Label>
+              <Input 
+                type="date"
+                required 
+                value={formData.date} 
+                onChange={e => setFormData({...formData, date: e.target.value})} 
+                className="rounded-xl h-12 font-bold"
+              />
+            </div>
+          )}
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">

@@ -1,4 +1,4 @@
-import { getTodayTasks, syncStreak, getEvents } from '@/lib/actions';
+import { getTodayTasks, syncStreak, getEvents, getTomorrowTasks } from '@/lib/actions';
 import { prisma } from '@/lib/prisma';
 import { TaskList } from '@/components/TaskList';
 import { ProgressWidget } from '@/components/ProgressWidget';
@@ -14,17 +14,10 @@ import { Flame, Trophy } from 'lucide-react';
 // Server Component
 export default async function Dashboard() {
   const todayTasks = await getTodayTasks();
+  const tomorrowTasks = await getTomorrowTasks();
   const userProgress = await syncStreak();
   const events = await getEvents();
   
-  const tomorrow = addDays(new Date(), 1);
-  const tomorrowDayOfWeek = tomorrow.getDay();
-  
-  const tomorrowTemplates = await prisma.scheduleTemplate.findMany({
-    where: { dayOfWeek: tomorrowDayOfWeek },
-    orderBy: { startTime: 'asc' }
-  });
-
   const totalTasks = todayTasks.length;
   const completedTasks = todayTasks.filter((t) => t.isDone).length;
   const progressPercentage = totalTasks === 0 ? 100 : Math.round((completedTasks / totalTasks) * 100);
@@ -78,31 +71,59 @@ export default async function Dashboard() {
 
       {/* Live Focus tracking */}
       <section>
-        <LiveFocusBanner todayTasks={todayTasks} />
+        <LiveFocusBanner todayTasks={todayTasks as any} />
       </section>
 
       {/* Main Grid Content */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10">
         
-        {/* Left Column: Today's Focus */}
-        <div className="lg:col-span-8 space-y-6">
-          <div className="flex items-center justify-between">
-            <h2 className="text-3xl font-heading font-bold tracking-tight text-foreground">Today's Focus</h2>
-            <div className="flex items-center gap-4">
-              <QuickAddForm />
-              <div className="text-sm font-semibold bg-muted px-4 py-1.5 rounded-full text-muted-foreground border">
-                {completedTasks} / {totalTasks} Tasks
+        {/* Left Column: Today's Focus & Bible Verse */}
+        <div className="lg:col-span-8 space-y-8">
+          <div className="space-y-6">
+            <div className="flex items-center justify-between">
+              <h2 className="text-3xl font-heading font-bold tracking-tight text-foreground">Today's Focus</h2>
+              <div className="flex items-center gap-4">
+                <QuickAddForm />
+                <div className="text-sm font-semibold bg-muted px-4 py-1.5 rounded-full text-muted-foreground border">
+                  {completedTasks} / {totalTasks} Tasks
+                </div>
               </div>
             </div>
+            
+            <TaskList tasks={todayTasks as any} />
           </div>
-          
-          <TaskList tasks={todayTasks} />
 
           {/* Daily Quote / Bible Verse */}
           <DailyQuote />
+
+          {/* Tomorrow's Plan (Below Quote) */}
+          <div className="bg-card border border-border/60 shadow-sm rounded-[32px] p-8 relative overflow-hidden hover:-translate-y-0.5 hover:shadow-md transition-all duration-300">
+             {/* Decorative */}
+            <div className="absolute top-0 right-0 w-32 h-32 bg-secondary rounded-full blur-3xl -z-0 opacity-20 translate-x-1/2 -translate-y-1/2" />
+            
+            <h3 className="font-heading font-bold text-xl mb-6 relative z-10 flex items-center gap-2">
+               <Trophy className="w-5 h-5 text-secondary" />
+               Tomorrow&apos;s Plan
+            </h3>
+            
+            <div className="relative z-10">
+              {tomorrowTasks.length === 0 ? (
+                <p className="text-sm font-medium text-muted-foreground text-center py-6 bg-muted/50 rounded-2xl border border-border/50">Nothing scheduled for tomorrow.</p>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {tomorrowTasks.map(task => (
+                    <div key={task.id} className="flex justify-between items-center bg-muted/40 px-5 py-4 rounded-2xl border border-border/40 group hover:bg-white dark:hover:bg-black transition-colors shadow-sm">
+                      <span className="font-bold text-foreground group-hover:text-primary transition-colors">{task.subject}</span>
+                      <span className="text-xs font-black text-muted-foreground bg-background px-3 py-1 rounded-full border">{task.startTime}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
         </div>
 
-        {/* Right Column: Quick Overview */}
+        {/* Right Column: Quick Overview & Events */}
         <div className="lg:col-span-4 space-y-8">
           
           <ProgressWidget 
@@ -112,29 +133,6 @@ export default async function Dashboard() {
           />
 
           <ExamCountdown events={events as any} />
-
-          {/* Tomorrow at a Glance */}
-          <div className="bg-card border border-border/60 shadow-sm rounded-3xl p-6 relative overflow-hidden hover:-translate-y-0.5 hover:shadow-md transition-all duration-300">
-             {/* Decorative */}
-            <div className="absolute top-0 right-0 w-32 h-32 bg-secondary rounded-full blur-3xl -z-0 opacity-20 translate-x-1/2 -translate-y-1/2" />
-            
-            <h3 className="font-heading font-bold text-lg mb-6 relative z-10">Tomorrow's Plan</h3>
-            
-            <div className="relative z-10">
-              {tomorrowTemplates.length === 0 ? (
-                <p className="text-sm font-medium text-muted-foreground text-center py-6 bg-muted/50 rounded-2xl border border-border/50">Nothing scheduled for tomorrow.</p>
-              ) : (
-                <ul className="space-y-4">
-                  {tomorrowTemplates.map(template => (
-                    <li key={template.id} className="flex justify-between items-center text-sm border-b border-border/40 pb-3 last:border-0 last:pb-0 relative group">
-                      <span className="font-semibold text-foreground group-hover:text-primary transition-colors">{template.subject}</span>
-                      <span className="text-muted-foreground bg-muted px-3 py-1 rounded-full font-medium border">{template.startTime}</span>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          </div>
         </div>
       </div>
     </div>
