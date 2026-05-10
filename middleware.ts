@@ -1,0 +1,40 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { jwtVerify } from 'jose';
+
+const SECRET = new TextEncoder().encode(
+  process.env.JWT_SECRET || 'study-flow-academic-workstation-super-secret-key-2026'
+);
+
+const PUBLIC_PATHS = ['/welcome', '/login', '/register', '/api/auth'];
+
+export async function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+
+  // Allow static assets and public paths
+  if (
+    pathname.startsWith('/_next') ||
+    pathname.startsWith('/static') ||
+    pathname.startsWith('/public') ||
+    pathname.includes('.') ||
+    PUBLIC_PATHS.some(path => pathname.startsWith(path))
+  ) {
+    return NextResponse.next();
+  }
+
+  const session = request.cookies.get('session')?.value;
+
+  if (!session) {
+    return NextResponse.redirect(new URL('/welcome', request.url));
+  }
+
+  try {
+    await jwtVerify(session, SECRET);
+    return NextResponse.next();
+  } catch (error) {
+    return NextResponse.redirect(new URL('/welcome', request.url));
+  }
+}
+
+export const config = {
+  matcher: ['/((?!api|_next/static|_next/image|favicon.ico).*)'],
+};

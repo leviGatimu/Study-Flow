@@ -1,11 +1,14 @@
 import { prisma } from '@/lib/prisma';
-import { updateUserName, clearAllTasks, syncStreak } from '@/lib/actions';
+import { updateUserName, clearAllTasks, syncStreak, logoutUser } from '@/lib/actions';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { User, ShieldAlert, Monitor, Bell, Download, Trash2, CheckCircle2 } from 'lucide-react';
+import { User, ShieldAlert, Monitor, Bell, Download, Trash2, CheckCircle2, LogOut } from 'lucide-react';
 import { redirect } from 'next/navigation';
+
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 export default async function SettingsPage() {
   const userProgress = await syncStreak();
@@ -26,9 +29,16 @@ export default async function SettingsPage() {
 
   return (
     <div className="space-y-12 max-w-[1000px] mx-auto animate-in fade-in duration-500 pb-16">
-      <div className="pt-6 pb-2 border-b border-border/40">
-        <h1 className="text-5xl font-heading font-black tracking-tight text-foreground">Settings</h1>
-        <p className="text-xl text-muted-foreground font-semibold mt-3">Configure your workstation and manage your data.</p>
+      <div className="pt-6 pb-2 border-b border-border/40 flex items-end justify-between">
+        <div>
+          <h1 className="text-5xl font-heading font-black tracking-tight text-foreground">Settings</h1>
+          <p className="text-xl text-muted-foreground font-semibold mt-3">Configure your workstation and manage your data.</p>
+        </div>
+        <form action={logoutUser}>
+          <Button variant="outline" type="submit" className="rounded-2xl font-bold h-12 px-6 shadow-sm border-border/60 active:scale-95 transition-all gap-2">
+            <LogOut className="w-4 h-4" /> Logout
+          </Button>
+        </form>
       </div>
 
       <div className="grid grid-cols-1 gap-8">
@@ -52,7 +62,7 @@ export default async function SettingsPage() {
                 <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground ml-1">Display Name</Label>
                 <Input 
                   name="name" 
-                  defaultValue={userProgress.name} 
+                  defaultValue={userProgress?.name || ''} 
                   placeholder="Enter your name" 
                   className="h-12 rounded-xl bg-muted/30 border-border/60 font-bold px-4"
                 />

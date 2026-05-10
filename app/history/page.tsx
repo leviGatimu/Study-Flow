@@ -3,6 +3,9 @@ import { HistoryCharts } from '@/components/HistoryCharts';
 import { format } from 'date-fns';
 import { CheckCircle2, BookOpen, Repeat, Trophy, XCircle } from 'lucide-react';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export default async function HistoryPage() {
   const tasks = await getHistoryTasks();
   const userProgress = await syncStreak();
@@ -43,7 +46,7 @@ export default async function HistoryPage() {
         />
         <StatCard 
           label="Best Streak" 
-          value={`${userProgress.longestStreak} Days`} 
+          value={`${userProgress?.longestStreak || 0} Days`} 
           icon={<Trophy className="w-6 h-6 text-yellow-500" />} 
           description="Your all-time record"
         />
@@ -74,12 +77,12 @@ export default async function HistoryPage() {
                   <div className="col-span-3 font-semibold text-primary">
                     {format(new Date(task.date), 'MMM do, yyyy')}
                   </div>
-                  <div className="col-span-4 font-heading font-bold text-lg">
+                  <div className="col-span-4 font-heading font-black text-lg">
                     {task.subject}
                   </div>
                   <div className="col-span-2">
                     <span className={`inline-flex items-center px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border
-                      ${task.type === 'HOMEWORK' ? 'bg-primary/5 text-primary border-primary/10' : 'bg-orange-500/5 text-orange-600 border-orange-500/10'}`}>
+                      ${task.type === 'HOMEWORK' ? 'bg-primary/5 text-primary border-primary/20' : 'bg-orange-500/5 text-orange-600 border-orange-500/10'}`}>
                       {task.type}
                     </span>
                   </div>
