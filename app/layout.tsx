@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { Outfit, Nunito } from "next/font/google";
 import "./globals.css";
 import { Sidebar } from "@/components/Sidebar";
+import { ReminderManager } from "@/components/ReminderManager";
+import { ThemeProvider } from "@/components/ThemeProvider";
 
 const outfit = Outfit({
   subsets: ["latin"],
@@ -24,12 +26,20 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${outfit.variable} ${nunito.variable}`}>
+    <html lang="en" suppressHydrationWarning>
       <body className="flex h-screen w-screen overflow-hidden bg-background font-sans text-foreground antialiased relative">
-        <Sidebar />
-        <main className="flex-1 overflow-y-auto p-4 md:p-8 z-10 relative">
-          {children}
-        </main>
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="system"
+          enableSystem
+          disableTransitionOnChange
+        >
+          <ReminderManager />
+          <Sidebar />
+          <main className="flex-1 overflow-y-auto p-4 md:p-8 z-10 relative">
+            {children}
+          </main>
+        </ThemeProvider>
       </body>
     </html>
   );

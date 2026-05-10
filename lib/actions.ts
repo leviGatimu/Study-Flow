@@ -10,6 +10,7 @@ import { join } from 'path';
  * Normalization Utility: Clean subject names to group them correctly
  */
 function normalizeSubject(subject: string) {
+  if (!subject) return '';
   return subject
     .replace(/\s*\(revision\)\s*/gi, '') // Remove (revision)
     .replace(/'/g, '')                    // Remove single quotes
@@ -383,8 +384,9 @@ export async function getUniqueSubjects() {
  * Fetch resources for a subject
  */
 export async function getResources(subject: string) {
+  const normalized = normalizeSubject(subject);
   return prisma.resource.findMany({
-    where: { subject: normalizeSubject(subject) },
+    where: { subject: normalized },
     orderBy: { createdAt: 'desc' }
   });
 }
@@ -413,6 +415,9 @@ export async function addResource(formData: FormData) {
   }
 
   await prisma.resource.create({ data: { subject, title, type, url } });
+  
+  // Revalidate both the Hub and the subject detail page
+  revalidatePath('/resources');
   revalidatePath(`/resources/${encodeURIComponent(subject)}`);
   revalidatePath(`/focus`);
 }
@@ -421,6 +426,7 @@ export async function addResource(formData: FormData) {
  * Delete a resource
  */
 export async function deleteResource(id: string, subject: string) {
+  const normalized = normalizeSubject(subject);
   const resource = await prisma.resource.findUnique({ where: { id } });
   if (resource && resource.type === 'FILE') {
     try {
@@ -430,7 +436,8 @@ export async function deleteResource(id: string, subject: string) {
     } catch (e) { console.error(e); }
   }
   await prisma.resource.delete({ where: { id } });
-  revalidatePath(`/resources/${encodeURIComponent(subject)}`);
+  revalidatePath('/resources');
+  revalidatePath(`/resources/${encodeURIComponent(normalized)}`);
   revalidatePath(`/focus`);
 }
 
@@ -519,6 +526,56 @@ export async function generateWeeklySummary(mondayDate: Date) {
     update: { grade, totalMinutes, subjectBreakdown: JSON.stringify(breakdown) },
     create: { startDate: start, endDate: end, grade, totalMinutes, subjectBreakdown: JSON.stringify(breakdown) }
   });
+}
+
+/**
+ * Fetch mastery items for a subject
+ */
+export async function getMasteryItems(subject: string) {
+  const normalized = normalizeSubject(subject);
+  return prisma.masteryItem.findMany({
+    where: { subject: normalized },
+    orderBy: { createdAt: 'asc' }
+  });
+}
+
+/**
+ * Add a new mastery item (topic/chapter)
+ */
+export async function addMasteryItem(subject: string, title: string) {
+  const normalized = normalizeSubject(subject);
+  await prisma.masteryItem.create({
+    data: { 
+      subject: normalized,
+      title,
+      isCompleted: false
+    }
+  });
+  revalidatePath('/resources');
+  revalidatePath(`/resources/${encodeURIComponent(normalized)}`);
+}
+
+/**
+ * Toggle mastery item completion
+ */
+export async function toggleMasteryItem(id: string, isCompleted: boolean, subject: string) {
+  const normalized = normalizeSubject(subject);
+  await prisma.masteryItem.update({
+    where: { id },
+    data: { isCompleted }
+  });
+  revalidatePath('/resources');
+  revalidatePath(`/resources/${encodeURIComponent(normalized)}`);
+}
+
+/**
+ * Delete a mastery item
+ */
+export async function deleteMasteryItem(id: string, subject: string) {
+  const normalized = normalizeSubject(subject);
+  await prisma.masteryItem.delete({ where: { id } });
+  revalidatePath('/resources');
+  revalidatePath(`/resources/${encodeURIComponent(normalized)}`);
 }
 
 /**

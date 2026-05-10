@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 const navItems = [
   { name: "Dashboard", href: "/", icon: Home },
@@ -30,16 +31,17 @@ export function Sidebar() {
 
   return (
     <div className="flex h-screen w-64 flex-col border-r bg-card p-4">
-      <div className="flex h-14 items-center px-4 mb-8 mt-2">
+      <div className="flex h-14 items-center justify-between px-4 mb-8 mt-2">
         <Link
           href="/"
-          className="flex items-center gap-3 font-heading font-bold text-xl text-primary hover:opacity-80 transition-opacity"
+          className="flex items-center gap-3 font-heading font-black text-xl text-primary hover:opacity-80 transition-opacity"
         >
           <div className="p-2 bg-primary/10 rounded-xl text-primary">
             <Calendar className="h-6 w-6" />
           </div>
           <span>Study Flow</span>
         </Link>
+        <ThemeToggle />
       </div>
 
       <nav className="flex-1 space-y-2">

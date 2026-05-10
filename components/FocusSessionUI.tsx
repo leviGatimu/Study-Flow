@@ -1,0 +1,368 @@
+'use client';
+
+import { useState, useEffect, useRef } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { 
+  Volume2, VolumeX, Maximize2, Minimize2, 
+  Play, Pause, Flame, Zap, CheckCircle2, 
+  ArrowLeft, ListTodo, X
+} from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Slider } from '@/components/ui/slider';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { cn } from '@/lib/utils';
+import Link from 'next/link';
+
+interface FocusSessionProps {
+  task: any;
+  resources: any[];
+}
+
+export function FocusSessionUI({ task, resources }: FocusSessionProps) {
+  const [step, setSetp] = useState<'PREP' | 'FOCUS'>('PREP');
+  const [intensity, setIntensity] = useState<'NORMAL' | 'INTENSE'>('NORMAL');
+  const [goals, setGoals] = useState<string[]>(['']);
+  const [isFullScreen, setIsFullScreen] = useState(false);
+  const [isMuted, setIsMuted] = useState(true);
+  const [audioSource, setAudioSource] = useState('RAIN');
+  const [timeLeft, setTimeLeft] = useState({ h: 0, m: 0, s: 0 });
+  
+  const containerRef = useRef<HTMLDivElement>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  // Sync Timer
+  useEffect(() => {
+    if (step !== 'FOCUS') return;
+
+    const calculateTime = () => {
+      const now = new Date();
+      const [endH, endM] = (task.endTime || '00:00').split(':').map(Number);
+      const end = new Date();
+      end.setHours(endH, endM, 0, 0);
+
+      const diff = end.getTime() - now.getTime();
+      if (diff <= 0) {
+        setTimeLeft({ h: 0, m: 0, s: 0 });
+        return;
+      }
+
+      setTimeLeft({
+        h: Math.floor(diff / (1000 * 60 * 60)),
+        m: Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60)),
+        s: Math.floor((diff % (1000 * 60)) / 1000)
+      });
+    };
+
+    calculateTime();
+    const interval = setInterval(calculateTime, 1000);
+    return () => clearInterval(interval);
+  }, [step, task.endTime]);
+
+  const toggleFullScreen = () => {
+    if (!document.fullscreenElement) {
+      containerRef.current?.requestFullscreen();
+      setIsFullScreen(true);
+    } else {
+      document.exitFullscreen();
+      setIsFullScreen(false);
+    }
+  };
+
+  const handleStartFocus = () => {
+    setSetp('FOCUS');
+    if (isFullScreen && !document.fullscreenElement) {
+      containerRef.current?.requestFullscreen();
+    }
+  };
+
+  const addGoal = () => setGoals([...goals, '']);
+  const updateGoal = (idx: number, val: string) => {
+    const newGoals = [...goals];
+    newGoals[idx] = val;
+    setGoals(newGoals);
+  };
+
+  return (
+    <div ref={containerRef} className={cn(
+      "min-h-screen transition-colors duration-1000 flex flex-col items-center justify-center p-6 sm:p-12 relative overflow-hidden",
+      step === 'PREP' ? "bg-background" : (intensity === 'INTENSE' ? "bg-slate-950 text-white" : "bg-slate-900 text-white")
+    )}>
+      
+      {/* Background Ambience */}
+      <AnimatePresence>
+        {step === 'FOCUS' && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 0.05 }}
+            exit={{ opacity: 0 }}
+            className="absolute inset-0 pointer-events-none"
+          >
+             <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-20" />
+             <div className={cn(
+               "absolute inset-0 bg-gradient-to-br from-primary/20 via-transparent to-transparent",
+               intensity === 'INTENSE' && "from-orange-500/20"
+             )} />
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* HEADER / CONTROLS */}
+      <div className="absolute top-8 left-8 right-8 flex items-center justify-between z-50">
+        <Link href="/">
+          <Button variant="ghost" className={cn("rounded-full gap-2 font-bold", step === 'FOCUS' && "text-white hover:bg-white/10")}>
+            <ArrowLeft className="w-4 h-4" /> Exit
+          </Button>
+        </Link>
+
+        <div className="flex items-center gap-3">
+          {step === 'FOCUS' && (
+            <>
+               <Button 
+                variant="ghost" 
+                size="icon" 
+                className="rounded-full bg-white/5 hover:bg-white/20 text-white"
+                onClick={() => setIsMuted(!isMuted)}
+              >
+                {isMuted ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
+              </Button>
+            </>
+          )}
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            className={cn("rounded-full bg-white/5 hover:bg-white/20", step === 'FOCUS' ? "text-white" : "text-foreground")}
+            onClick={toggleFullScreen}
+          >
+            {isFullScreen ? <Minimize2 className="w-5 h-5" /> : <Maximize2 className="w-5 h-5" />}
+          </Button>
+        </div>
+      </div>
+
+      {/* PREP PHASE */}
+      {step === 'PREP' && (
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="max-w-2xl w-full space-y-12"
+        >
+          <div className="text-center space-y-4">
+            <span className="text-[10px] font-black uppercase tracking-[0.4em] text-primary">Session Preparation</span>
+            <h1 className="text-6xl font-heading font-black tracking-tighter">{task.subject}</h1>
+            <p className="text-muted-foreground font-medium">Set your parameters before entering the zone.</p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+            <div className="space-y-6">
+              <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+                <Zap className="w-3.5 h-3.5" /> Intensity Level
+              </Label>
+              <div className="grid grid-cols-2 gap-4">
+                <button 
+                  onClick={() => setIntensity('NORMAL')}
+                  className={cn(
+                    "p-6 rounded-3xl border-2 transition-all flex flex-col items-center gap-3",
+                    intensity === 'NORMAL' ? "bg-primary/5 border-primary text-primary shadow-lg shadow-primary/10" : "bg-card border-border/40 text-muted-foreground grayscale opacity-50"
+                  )}
+                >
+                  <Flame className="w-8 h-8" />
+                  <span className="font-bold">Normal</span>
+                </button>
+                <button 
+                  onClick={() => setIntensity('INTENSE')}
+                  className={cn(
+                    "p-6 rounded-3xl border-2 transition-all flex flex-col items-center gap-3",
+                    intensity === 'INTENSE' ? "bg-orange-500/5 border-orange-500 text-orange-600 shadow-lg shadow-orange-500/10" : "bg-card border-border/40 text-muted-foreground grayscale opacity-50"
+                  )}
+                >
+                  <Zap className="w-8 h-8" />
+                  <span className="font-bold">Deep Focus</span>
+                </button>
+              </div>
+            </div>
+
+            <div className="space-y-6">
+              <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+                <ListTodo className="w-3.5 h-3.5" /> Session Goals
+              </Label>
+              <div className="space-y-3">
+                {goals.map((goal, idx) => (
+                  <Input 
+                    key={idx}
+                    value={goal}
+                    onChange={(e) => updateGoal(idx, e.target.value)}
+                    placeholder={`Goal #${idx + 1}...`}
+                    className="h-12 rounded-xl bg-muted/30 border-border/40 font-bold px-4"
+                  />
+                ))}
+                <Button variant="ghost" size="sm" onClick={addGoal} className="text-xs font-bold text-primary gap-1">
+                   <Plus className="w-3 h-3" /> Add another goal
+                </Button>
+              </div>
+            </div>
+          </div>
+
+          <div className="pt-8 border-t flex flex-col items-center gap-4">
+            <Button 
+              onClick={handleStartFocus}
+              className="h-20 w-full sm:w-[400px] rounded-[32px] text-2xl font-heading font-black shadow-2xl shadow-primary/30 active:scale-95 transition-all gap-4"
+            >
+              <Play className="w-8 h-8 fill-current" /> ENTER FOCUS
+            </Button>
+            <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Ending at {task.endTime}</p>
+          </div>
+        </motion.div>
+      )}
+
+      {/* FOCUS PHASE */}
+      {step === 'FOCUS' && (
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="w-full flex flex-col items-center space-y-16"
+        >
+          {/* MASSIVE TIMER */}
+          <div className="flex flex-col items-center space-y-4">
+            <motion.div 
+              animate={{ scale: [1, 1.02, 1] }}
+              transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+              className="text-[12rem] sm:text-[18rem] font-heading font-black tabular-nums tracking-tighter leading-none text-white drop-shadow-[0_0_50px_rgba(255,255,255,0.1)]"
+            >
+              {timeLeft.h > 0 && <span>{timeLeft.h.toString().padStart(2, '0')}:</span>}
+              <span>{timeLeft.m.toString().padStart(2, '0')}</span>
+              <span className="opacity-20">:</span>
+              <span className="text-[0.6em]">{timeLeft.s.toString().padStart(2, '0')}</span>
+            </motion.div>
+            <div className="flex items-center gap-3 bg-white/10 px-8 py-3 rounded-full backdrop-blur-xl border border-white/10">
+              <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+              <span className="text-sm font-black uppercase tracking-[0.3em]">{task.subject} Session Active</span>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-20 max-w-6xl w-full">
+            {/* GOALS GRID */}
+            <div className="space-y-8">
+               <h3 className="text-xs font-black uppercase tracking-[0.3em] text-white/40 flex items-center gap-3">
+                 <ListTodo className="w-4 h-4" /> Current Objectives
+               </h3>
+               <div className="grid grid-cols-1 gap-4">
+                  {goals.filter(g => g.trim()).map((goal, i) => (
+                    <motion.div 
+                      key={i}
+                      whileHover={{ x: 5 }}
+                      className="flex items-center gap-5 p-6 rounded-[24px] bg-white/5 border border-white/5 hover:bg-white/10 transition-all cursor-pointer group"
+                    >
+                      <div className="w-6 h-6 rounded-lg border-2 border-white/20 group-hover:border-primary transition-colors flex items-center justify-center">
+                        <CheckCircle2 className="w-4 h-4 text-primary opacity-0 group-hover:opacity-100" />
+                      </div>
+                      <span className="text-xl font-bold text-white/90">{goal}</span>
+                    </motion.div>
+                  ))}
+               </div>
+            </div>
+
+            {/* QUICK RESOURCES */}
+            <div className="space-y-8">
+               <h3 className="text-xs font-black uppercase tracking-[0.3em] text-white/40 flex items-center gap-3">
+                 <BookOpen className="w-4 h-4" /> Materials
+               </h3>
+               <div className="grid grid-cols-1 gap-4">
+                  {resources.length === 0 ? (
+                    <p className="text-sm text-white/20 italic p-8 border-2 border-dashed border-white/5 rounded-[32px] text-center">No materials attached</p>
+                  ) : (
+                    resources.slice(0, 4).map((res) => (
+                      <a 
+                        key={res.id}
+                        href={res.url}
+                        target="_blank"
+                        className="flex items-center justify-between p-6 rounded-[24px] bg-white/5 border border-white/5 hover:bg-white/10 transition-all"
+                      >
+                         <div className="flex items-center gap-4">
+                           <div className="p-3 bg-white/5 rounded-xl text-primary">
+                             <FileText className="w-5 h-5" />
+                           </div>
+                           <span className="font-bold text-white/90">{res.title}</span>
+                         </div>
+                         <Maximize2 className="w-4 h-4 text-white/20" />
+                      </a>
+                    ))
+                  )}
+               </div>
+            </div>
+          </div>
+        </motion.div>
+      )}
+
+      {/* Hidden Audio */}
+      <audio 
+        ref={audioRef}
+        loop 
+        muted={isMuted}
+        src={audioSource === 'RAIN' ? 'https://www.soundjay.com/nature/rain-01.mp3' : ''} 
+      />
+    </div>
+  );
+}
+
+function Plus(props: any) {
+  return (
+    <svg
+      {...props}
+      xmlns="http://www.w3.org/2000/svg"
+      width="24"
+      height="24"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M5 12h14" />
+      <path d="M12 5v14" />
+    </svg>
+  )
+}
+
+function BookOpen(props: any) {
+  return (
+    <svg
+      {...props}
+      xmlns="http://www.w3.org/2000/svg"
+      width="24"
+      height="24"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M2 3h6a4 4 0 0 1 4 4v14a4 4 0 0 0-4-4H2z" />
+      <path d="M22 3h-6a4 4 0 0 0-4 4v14a4 4 0 0 1 4-4h6z" />
+    </svg>
+  )
+}
+
+function FileText(props: any) {
+  return (
+    <svg
+      {...props}
+      xmlns="http://www.w3.org/2000/svg"
+      width="24"
+      height="24"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" />
+      <polyline points="14 2 14 8 20 8" />
+      <line x1="16" y1="13" x2="8" y2="13" />
+      <line x1="16" y1="17" x2="8" y2="17" />
+      <line x1="10" y1="9" x2="8" y2="9" />
+    </svg>
+  )
+}
