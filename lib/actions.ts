@@ -177,13 +177,22 @@ export async function toggleTaskMissed(taskId: string, isMissed: boolean) {
  * Logic-based Deletion: Mark as isDeleted so it won't be regenerated
  */
 export async function deleteTask(taskId: string) {
-  await prisma.task.update({
-    where: { id: taskId },
-    data: { isDeleted: true }
-  });
-  revalidatePath('/');
-  revalidatePath('/calendar');
-  revalidatePath('/history');
+  try {
+    await prisma.task.update({
+      where: { id: taskId },
+      data: { isDeleted: true }
+    });
+    
+    // Force immediate revalidation of all study views
+    revalidatePath('/');
+    revalidatePath('/calendar');
+    revalidatePath('/history');
+    
+    return { success: true };
+  } catch (error) {
+    console.error('Failed to delete task:', error);
+    return { success: false };
+  }
 }
 
 /**
@@ -236,16 +245,53 @@ export async function createTemplate(data: {
 }
 
 /**
- * Update an existing task
+ * Update an existing task (move day or change time)
  */
 export async function updateTask(taskId: string, data: { date?: Date, startTime?: string, endTime?: string }) {
+  const existing = await prisma.task.findUnique({
+    where: { id: taskId }
+  });
+
+  if (!existing) return;
+
   if (data.date) {
     data.date = startOfDay(data.date);
+
+    // If it's a template task being moved to a different day
+    if (existing.templateId && !isSameDay(existing.date, data.date)) {
+      // 1. Mark the current slot as deleted so it doesn't regenerate
+      await prisma.task.update({
+        where: { id: taskId },
+        data: { isDeleted: true }
+      });
+
+      // 2. Create a new task instance on the new date
+      await prisma.task.create({
+        data: {
+          templateId: existing.templateId,
+          subject: existing.subject,
+          type: existing.type,
+          startTime: data.startTime || existing.startTime,
+          endTime: data.endTime || existing.endTime,
+          date: data.date,
+          isDone: existing.isDone,
+          isMissed: existing.isMissed,
+          isDeleted: false
+        }
+      });
+
+      revalidatePath('/');
+      revalidatePath('/calendar');
+      return;
+    }
   }
+
+  // Otherwise just update the existing record
   await prisma.task.update({
     where: { id: taskId },
     data
   });
+
   revalidatePath('/');
   revalidatePath('/calendar');
 }

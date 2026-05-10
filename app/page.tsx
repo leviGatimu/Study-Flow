@@ -11,6 +11,9 @@ import { QuickAddForm } from '@/components/QuickAddForm';
 import { format, addDays } from 'date-fns';
 import { Flame, Trophy } from 'lucide-react';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 // Server Component
 export default async function Dashboard() {
   const todayTasks = await getTodayTasks();

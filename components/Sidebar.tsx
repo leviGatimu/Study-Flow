@@ -10,12 +10,14 @@ import {
   Plus,
   FolderOpen,
   FileText,
+  LayoutGrid
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 
 const navItems = [
   { name: "Dashboard", href: "/", icon: Home },
+  { name: "Timetable", href: "/timetable", icon: LayoutGrid },
   { name: "Calendar", href: "/calendar", icon: Calendar },
   { name: "History", href: "/history", icon: CheckCircle },
   { name: "Summaries", href: "/summaries", icon: FileText },
