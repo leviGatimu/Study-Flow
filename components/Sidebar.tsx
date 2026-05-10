@@ -24,6 +24,7 @@ const navItems = [
   { name: "Summaries", href: "/summaries", icon: FileText },
   { name: "Resources", href: "/resources", icon: FolderOpen },
   { name: "Manage Schedule", href: "/manage", icon: Settings },
+  { name: "Settings", href: "/settings", icon: Settings },
 ];
 
 export function Sidebar() {
@@ -34,7 +35,7 @@ export function Sidebar() {
       <div className="flex h-14 items-center justify-between px-4 mb-8 mt-2">
         <Link
           href="/"
-          className="flex items-center gap-3 font-heading font-black text-xl text-primary hover:opacity-80 transition-opacity"
+          className="flex items-center gap-3 font-heading font-bold text-xl text-primary hover:opacity-80 transition-opacity"
         >
           <div className="p-2 bg-primary/10 rounded-xl text-primary">
             <Calendar className="h-6 w-6" />
@@ -44,7 +45,7 @@ export function Sidebar() {
         <ThemeToggle />
       </div>
 
-      <nav className="flex-1 space-y-2">
+      <nav className="flex-1 space-y-2 overflow-y-auto pr-2">
         {navItems.map((item) => {
           const Icon = item.icon;
           const isActive = pathname === item.href;

@@ -31,7 +31,7 @@ export default async function Dashboard() {
       <section className="flex flex-col sm:flex-row sm:items-end justify-between gap-6 pt-6 pb-4 border-b border-border/40 mb-2">
         <div className="space-y-4">
           <div className="flex items-center gap-4 flex-wrap">
-            <DynamicGreeting />
+            <DynamicGreeting name={userProgress.name} />
             
             {/* Duolingo-style Streak Widget */}
             <div className="flex items-center gap-3 bg-orange-500/10 border border-orange-500/20 px-4 py-2 rounded-2xl animate-in zoom-in duration-500 delay-200 shadow-sm shadow-orange-500/5 hover:scale-105 transition-transform cursor-default">

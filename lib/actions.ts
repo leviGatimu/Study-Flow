@@ -579,6 +579,18 @@ export async function deleteMasteryItem(id: string, subject: string) {
 }
 
 /**
+ * Update user profile name
+ */
+export async function updateUserName(name: string) {
+  await prisma.userProgress.upsert({
+    where: { id: 'user-id' },
+    update: { name },
+    create: { id: 'user-id', name }
+  });
+  revalidatePath('/');
+}
+
+/**
  * DEBUG/MAINTENANCE: Clear all tasks
  */
 export async function clearAllTasks() {
