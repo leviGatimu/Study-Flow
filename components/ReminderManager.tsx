@@ -2,12 +2,11 @@
 
 import { useEffect, useState } from 'react';
 import { getTodayTasks } from '@/lib/actions';
-import { Bell, BellOff, Info } from 'lucide-react';
+import { Bell } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { 
   Dialog, 
   DialogContent, 
-  DialogHeader, 
   DialogTitle, 
   DialogDescription 
 } from '@/components/ui/dialog';
@@ -18,12 +17,18 @@ export function ReminderManager() {
   const [notifiedTasks, setNotifiedTasks] = useState<Set<string>>(new Set());
 
   useEffect(() => {
+    let timeoutId: NodeJS.Timeout;
     if (typeof window !== 'undefined') {
-      setPermission(Notification.permission);
-      if (Notification.permission === 'default') {
-        setShowPrompt(true);
-      }
+      timeoutId = setTimeout(() => {
+        setPermission(p => p === Notification.permission ? p : Notification.permission);
+        if (Notification.permission === 'default') {
+          setShowPrompt(true);
+        }
+      }, 0);
     }
+    return () => {
+      if (timeoutId) clearTimeout(timeoutId);
+    };
   }, []);
 
   useEffect(() => {

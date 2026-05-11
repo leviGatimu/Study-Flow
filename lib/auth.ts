@@ -1,54 +1,39 @@
-import { SignJWT, jwtVerify } from 'jose';
 import { cookies } from 'next/headers';
-import { NextRequest, NextResponse } from 'next/server';
+import { SignJWT, jwtVerify } from 'jose';
 
 const SECRET = new TextEncoder().encode(
   process.env.JWT_SECRET || 'study-flow-academic-workstation-super-secret-key-2026'
 );
 
-export async function encrypt(payload: any) {
-  return await new SignJWT(payload)
-    .setProtectedHeader({ alg: 'HS256' })
-    .setIssuedAt()
-    .setExpirationTime('7d')
-    .sign(SECRET);
-}
-
-export async function decrypt(input: string): Promise<any> {
-  const { payload } = await jwtVerify(input, SECRET, {
-    algorithms: ['HS256'],
-  });
-  return payload;
-}
-
 export async function login(userId: string) {
-  const expires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
-  const session = await encrypt({ userId, expires });
+  const token = await new SignJWT({ userId })
+    .setProtectedHeader({ alg: 'HS256' })
+    .setExpirationTime('30d')
+    .sign(SECRET);
 
-  (await cookies()).set('session', session, { 
-    expires, 
+  const cookieStore = await cookies();
+  cookieStore.set('session', token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'lax',
-    path: '/'
+    path: '/',
   });
 }
 
 export async function logout() {
-  (await cookies()).set('session', '', { expires: new Date(0), path: '/' });
+  const cookieStore = await cookies();
+  cookieStore.delete('session');
 }
 
-export async function getSession() {
-  const session = (await cookies()).get('session')?.value;
+export async function getUserId(): Promise<string | null> {
+  const cookieStore = await cookies();
+  const session = cookieStore.get('session')?.value;
   if (!session) return null;
+
   try {
-    return await decrypt(session);
-  } catch (e) {
+    const { payload } = await jwtVerify(session, SECRET);
+    return payload.userId as string;
+  } catch {
     return null;
   }
-}
-
-export async function getUserId() {
-  const session = await getSession();
-  return session?.userId as string | null;
 }

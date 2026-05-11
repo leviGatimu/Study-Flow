@@ -1,9 +1,9 @@
 import { getTodayTasks } from '@/lib/actions';
-import { FocusSessionUI } from '@/components/FocusSessionUI';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Play, Sparkles, Brain, Clock, Zap } from 'lucide-react';
 import Link from 'next/link';
+import { TaskWithTemplate } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
 
@@ -81,7 +81,7 @@ export default async function FocusHubPage() {
               <p className="text-muted-foreground font-bold italic">No tasks scheduled for today. Start a free session above!</p>
             </div>
           ) : (
-            todayTasks.map((task: any) => (
+            todayTasks.map((task: TaskWithTemplate) => (
               <div key={task.id} className="group p-6 rounded-[32px] bg-card border border-border/60 shadow-sm hover:border-primary/40 hover:shadow-md transition-all flex items-center justify-between">
                 <div className="flex items-center gap-6">
                   <div className="p-4 bg-muted rounded-2xl font-black text-primary text-xl tracking-tighter">

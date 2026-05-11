@@ -2,7 +2,10 @@ import { getProjects } from '@/lib/project-actions';
 import { ProjectList } from './ProjectList';
 import { Plus, Rocket } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import Link from 'next/link';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { CreateProjectForm } from './CreateProjectForm';
+import { cn } from '@/lib/utils';
+import { ProjectWithDocs } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
 
@@ -16,7 +19,7 @@ export default async function ProjectsPage() {
           <h1 className="text-5xl font-heading font-black tracking-tight text-foreground">Project Hub</h1>
           <p className="text-xl text-muted-foreground font-semibold mt-3">Design, Document, and Deliver.</p>
         </div>
-        <ProjectCreateButton />
+        <DialogTriggerButton />
       </div>
 
       {projects.length === 0 ? (
@@ -24,24 +27,14 @@ export default async function ProjectsPage() {
           <Rocket className="w-16 h-16 text-muted-foreground/20 mb-6" />
           <h2 className="text-2xl font-heading font-bold text-muted-foreground">No projects yet.</h2>
           <p className="text-muted-foreground mt-2 max-w-md mx-auto">Start your first venture today. Your AI Buddy is ready to help you plan.</p>
-          <ProjectCreateButton className="mt-8" />
+          <DialogTriggerButton className="mt-8" />
         </div>
       ) : (
-        <ProjectList initialProjects={projects as any} />
+        <ProjectList initialProjects={projects as ProjectWithDocs[]} />
       )}
     </div>
   );
 }
-
-function ProjectCreateButton({ className }: { className?: string }) {
-  return (
-    <DialogTriggerButton className={className} />
-  );
-}
-
-// Separate component for client-side dialog
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { CreateProjectForm } from './CreateProjectForm';
 
 function DialogTriggerButton({ className }: { className?: string }) {
   return (
@@ -60,5 +53,3 @@ function DialogTriggerButton({ className }: { className?: string }) {
     </Dialog>
   );
 }
-
-import { cn } from '@/lib/utils';

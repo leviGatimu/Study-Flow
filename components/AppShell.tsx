@@ -1,34 +1,21 @@
-"use client";
+'use client';
 
-import { usePathname } from "next/navigation";
 import { Sidebar } from "@/components/Sidebar";
-import { ReminderManager } from "@/components/ReminderManager";
-import { CommandMenu } from "@/components/CommandMenu";
-
-const PUBLIC_ROUTES = ["/welcome", "/login", "/register"];
+import { UserProgress } from "@/lib/types";
 
 export function AppShell({ 
-  children,
-  userProgress
+  children, 
+  userProgress 
 }: { 
-  children: React.ReactNode,
-  userProgress?: any
+  children: React.ReactNode;
+  userProgress: UserProgress | null;
 }) {
-  const pathname = usePathname();
-  const isPublicRoute = PUBLIC_ROUTES.some(
-    (route) => pathname === route || pathname.startsWith(`${route}/`),
-  );
-
-  if (isPublicRoute) {
-    return <main className="flex-1 overflow-y-auto z-10 relative">{children}</main>;
-  }
-
   return (
-    <>
-      <ReminderManager />
-      <CommandMenu />
+    <div className="flex h-full w-full overflow-hidden">
       <Sidebar userProgress={userProgress} />
-      <main className="flex-1 overflow-y-auto z-10 relative">{children}</main>
-    </>
+      <main className="flex-1 overflow-y-auto custom-scrollbar bg-background">
+        {children}
+      </main>
+    </div>
   );
 }

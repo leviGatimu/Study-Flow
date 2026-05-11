@@ -7,28 +7,30 @@ export function DynamicGreeting({ name = 'Student' }: { name?: string }) {
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    setMounted(true);
-    const updateGreeting = () => {
-      const formatter = new Intl.DateTimeFormat('en-US', {
-        timeZone: 'Africa/Kigali',
-        hour: 'numeric',
-        hourCycle: 'h24',
-      });
-      const hourStr = formatter.format(new Date());
-      const hour = parseInt(hourStr, 10);
+    setTimeout(() => {
+      setMounted(m => m === false ? true : m);
+      const updateGreeting = () => {
+        const formatter = new Intl.DateTimeFormat('en-US', {
+          timeZone: 'Africa/Kigali',
+          hour: 'numeric',
+          hourCycle: 'h24',
+        });
+        const hourStr = formatter.format(new Date());
+        const hour = parseInt(hourStr, 10);
 
-      if (hour >= 5 && hour < 12) {
-        setGreeting('Good morning');
-      } else if (hour >= 12 && hour < 18) {
-        setGreeting('Good afternoon');
-      } else {
-        setGreeting('Good evening');
-      }
-    };
+        if (hour >= 5 && hour < 12) {
+          setGreeting('Good morning');
+        } else if (hour >= 12 && hour < 18) {
+          setGreeting('Good afternoon');
+        } else {
+          setGreeting('Good evening');
+        }
+      };
 
-    updateGreeting();
-    const interval = setInterval(updateGreeting, 60000);
-    return () => clearInterval(interval);
+      updateGreeting();
+      const interval = setInterval(updateGreeting, 60000);
+      return () => clearInterval(interval);
+    }, 0);
   }, []);
 
   if (!mounted) {

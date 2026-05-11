@@ -6,8 +6,6 @@ import {
   Trash2, ChevronLeft, Save, Sparkles, Loader2 
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Progress } from '@/components/ui/progress';
 import { Slider } from '@/components/ui/slider';
 import { cn } from '@/lib/utils';
 import { 
@@ -16,27 +14,23 @@ import {
 import { askAIBuddy } from '@/lib/ai-actions';
 import Link from 'next/link';
 import ReactMarkdown from 'react-markdown';
-
-type Project = {
-  id: string;
-  title: string;
-  description: string | null;
-  progress: number;
-  docs: { id: string, title: string, content: string }[];
-};
+import { ProjectWithDocs } from '@/lib/types';
 
 function Typewriter({ text, speed = 10 }: { text: string, speed?: number }) {
   const [displayedText, setDisplayedText] = useState('');
   
   useEffect(() => {
-    setDisplayedText('');
-    let i = 0;
-    const timer = setInterval(() => {
-      setDisplayedText((prev) => prev + text.charAt(i));
-      i++;
-      if (i >= text.length) clearInterval(timer);
-    }, speed);
-    return () => clearInterval(timer);
+    const timerId = setTimeout(() => {
+      setDisplayedText('');
+      let i = 0;
+      const timer = setInterval(() => {
+        setDisplayedText((prev) => prev + text.charAt(i));
+        i++;
+        if (i >= text.length) clearInterval(timer);
+      }, speed);
+      return () => clearInterval(timer);
+    }, 0);
+    return () => clearTimeout(timerId);
   }, [text, speed]);
 
   return (
@@ -46,7 +40,7 @@ function Typewriter({ text, speed = 10 }: { text: string, speed?: number }) {
   );
 }
 
-export function ProjectInterface({ project }: { project: Project }) {
+export function ProjectInterface({ project }: { project: ProjectWithDocs }) {
   const [activeDocId, setActiveDocId] = useState<string | null>(null);
   const [isAiOpen, setIsAiOpen] = useState(false);
   const [aiInput, setAiInput] = useState('');
@@ -56,8 +50,6 @@ export function ProjectInterface({ project }: { project: Project }) {
   const [docTitle, setDocTitle] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [projectProgress, setProjectProgress] = useState(project.progress);
-
-  const activeDoc = project.docs.find(d => d.id === activeDocId);
 
   const handleCreateDoc = async () => {
     const title = 'New Documentation';

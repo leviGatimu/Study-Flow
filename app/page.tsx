@@ -1,5 +1,4 @@
 import { getTodayTasks, syncStreak, getEvents, getTomorrowTasks } from '@/lib/actions';
-import { prisma } from '@/lib/prisma';
 import { TaskList } from '@/components/TaskList';
 import { ProgressWidget } from '@/components/ProgressWidget';
 import { LiveFocusBanner } from '@/components/LiveFocusBanner';
@@ -8,9 +7,10 @@ import { DailyQuote } from '@/components/DailyQuote';
 import { DynamicGreeting } from '@/components/DynamicGreeting';
 import { ExamCountdown } from '@/components/ExamCountdown';
 import { QuickAddForm } from '@/components/QuickAddForm';
-import { format, addDays } from 'date-fns';
+import { format } from 'date-fns';
 import { Flame, Trophy, Target } from 'lucide-react';
 import { RankBadge } from '@/components/RankBadge';
+import { TaskWithTemplate, ExamEvent } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -88,7 +88,7 @@ export default async function Dashboard() {
       <div className="px-4 md:px-8 space-y-12">
         {/* Live Focus tracking */}
         <section>
-          <LiveFocusBanner todayTasks={todayTasks as any} />
+          <LiveFocusBanner todayTasks={todayTasks as TaskWithTemplate[]} />
         </section>
 
         {/* Main Grid Content */}
@@ -98,7 +98,7 @@ export default async function Dashboard() {
           <div className="lg:col-span-8 space-y-8">
             <div className="space-y-6">
               <div className="flex items-center justify-between">
-                <h2 className="text-3xl font-heading font-bold tracking-tight text-foreground">Today's Focus</h2>
+                <h2 className="text-3xl font-heading font-bold tracking-tight text-foreground">Today&apos;s Focus</h2>
                 <div className="flex items-center gap-4">
                   <QuickAddForm />
                   <div className="text-sm font-semibold bg-muted px-4 py-1.5 rounded-full text-muted-foreground border">
@@ -107,7 +107,7 @@ export default async function Dashboard() {
                 </div>
               </div>
               
-              <TaskList tasks={todayTasks as any} />
+              <TaskList tasks={todayTasks as TaskWithTemplate[]} />
             </div>
 
             {/* Daily Quote / Bible Verse */}
@@ -149,7 +149,7 @@ export default async function Dashboard() {
               total={totalTasks} 
             />
 
-            <ExamCountdown events={events as any} />
+            <ExamCountdown events={events as ExamEvent[]} />
           </div>
         </div>
       </div>

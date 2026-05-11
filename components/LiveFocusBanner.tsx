@@ -23,11 +23,23 @@ export function LiveFocusBanner({ todayTasks }: { todayTasks: TaskType[] }) {
 
   // Update time every minute
   useEffect(() => {
-    setCurrentTime(new Date());
-    const timer = setInterval(() => {
+    let intervalId: NodeJS.Timeout;
+    const timeoutId = setTimeout(() => {
       setCurrentTime(new Date());
-    }, 60000);
-    return () => clearInterval(timer);
+      intervalId = setInterval(() => {
+        setCurrentTime(prev => {
+          const now = new Date();
+          if (prev && now.getMinutes() === prev.getMinutes() && now.getHours() === prev.getHours()) {
+              return prev;
+          }
+          return now;
+        });
+      }, 10000); // Check every 10s to be responsive, but functional update handles it
+    }, 0);
+    return () => {
+      clearTimeout(timeoutId);
+      if (intervalId) clearInterval(intervalId);
+    };
   }, []);
 
   if (!currentTime) return null; // Avoid hydration mismatch

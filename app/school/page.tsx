@@ -1,6 +1,6 @@
 import { getUserId } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import { notFound, redirect } from 'next/navigation';
+import { redirect } from 'next/navigation';
 import { SchoolTimetable } from '@/components/SchoolTimetable';
 import { GraduationCap, ShieldAlert } from 'lucide-react';
 

@@ -17,14 +17,16 @@ export function DailyQuote() {
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    setMounted(true);
-    // Pick based on day of year
-    const start = new Date(new Date().getFullYear(), 0, 0).getTime();
-    const diff = new Date().getTime() - start;
-    const oneDay = 1000 * 60 * 60 * 24;
-    const dayOfYear = Math.floor(diff / oneDay);
-    
-    setVerse(VERSES[dayOfYear % VERSES.length]);
+    setTimeout(() => {
+      setMounted(m => m === false ? true : m);
+      // Pick based on day of year
+      const start = new Date(new Date().getFullYear(), 0, 0).getTime();
+      const diff = new Date().getTime() - start;
+      const oneDay = 1000 * 60 * 60 * 24;
+      const dayOfYear = Math.floor(diff / oneDay);
+      
+      setVerse(VERSES[dayOfYear % VERSES.length]);
+    }, 0);
   }, []);
 
   if (!mounted) return null;
@@ -33,7 +35,7 @@ export function DailyQuote() {
     <div className="bg-card border border-border/60 border-l-4 border-l-primary p-6 sm:p-8 rounded-3xl shadow-sm relative overflow-hidden mt-6 animate-in fade-in duration-500 hover:-translate-y-0.5 hover:shadow-md transition-all">
       <div className="absolute left-0 bottom-0 w-full h-1/2 bg-gradient-to-t from-primary/5 to-transparent pointer-events-none" />
       <blockquote className="italic text-muted-foreground text-lg leading-relaxed relative z-10">
-        "{verse.text}"
+        &quot;{verse.text}&quot;
         <footer className="mt-4 text-sm font-bold text-foreground/80 flex items-center gap-2">
           <span className="w-4 h-[2px] bg-primary rounded-full"></span> {verse.ref}
         </footer>

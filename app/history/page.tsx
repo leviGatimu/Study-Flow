@@ -2,6 +2,8 @@ import { getHistoryTasks, syncStreak } from '@/lib/actions';
 import { HistoryCharts } from '@/components/HistoryCharts';
 import { format } from 'date-fns';
 import { CheckCircle2, BookOpen, Repeat, Trophy, XCircle, Zap, Clock } from 'lucide-react';
+import { TaskWithTemplate } from '@/lib/types';
+import { cn } from '@/lib/utils';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -10,7 +12,6 @@ export default async function HistoryPage() {
   const tasks = await getHistoryTasks();
   const userProgress = await syncStreak();
 
-  const totalActioned = tasks.length;
   const homeworks = tasks.filter(t => t.isDone && t.type === 'HOMEWORK').length;
   const revisions = tasks.filter(t => t.isDone && t.type === 'REVISION').length;
   const missedCount = tasks.filter(t => t.isMissed).length;
@@ -70,7 +71,7 @@ export default async function HistoryPage() {
       </div>
 
       {/* Analytics Charts */}
-      <HistoryCharts tasks={tasks} />
+      <HistoryCharts tasks={tasks as TaskWithTemplate[]} />
 
       {/* Detailed Log */}
       <div className="space-y-6">
@@ -122,10 +123,6 @@ export default async function HistoryPage() {
       </div>
     </div>
   );
-}
-
-function cn(...inputs: any[]) {
-  return inputs.filter(Boolean).join(' ');
 }
 
 function StatCard({ label, value, icon, description }: { label: string, value: string | number, icon: React.ReactNode, description: string }) {

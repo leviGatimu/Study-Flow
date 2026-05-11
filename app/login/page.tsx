@@ -5,7 +5,7 @@ import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { BrainCircuit, ArrowRight, ShieldCheck, AlertCircle } from 'lucide-react';
+import { BrainCircuit, ShieldCheck, AlertCircle } from 'lucide-react';
 import Link from 'next/link';
 import { loginUser } from '@/lib/actions';
 import { useRouter } from 'next/navigation';

@@ -7,12 +7,21 @@ export default async function FocusPage({ params }: { params: Promise<{ taskId: 
   let task;
   
   if (resolvedParams.taskId === 'free') {
+    const now = new Date();
+    const oneHourLater = new Date(now.getTime() + 60 * 60 * 1000);
     task = {
       id: 'free',
+      userId: 'free',
+      templateId: null,
+      date: new Date(),
+      startTime: now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }),
+      endTime: oneHourLater.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }),
       subject: 'Custom Focus',
-      startTime: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }),
-      endTime: new Date(Date.now() + 60 * 60 * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }),
-      type: 'FREE'
+      isDone: false,
+      isMissed: false,
+      isDeleted: false,
+      type: 'FREE',
+      template: null
     };
   } else {
     task = await getTaskById(resolvedParams.taskId);

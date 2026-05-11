@@ -2,6 +2,7 @@ import { checkAIAvailability, getChatSessions } from '@/lib/ai-actions';
 import { syncStreak } from '@/lib/actions';
 import { AIChatInterface } from './AIChatInterface';
 import { AIKeyPrompt } from './AIKeyPrompt';
+import { ChatSession } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
 
@@ -17,7 +18,7 @@ export default async function AIPage() {
       {available ? (
         <AIChatInterface 
           userName={userProgress?.name || 'Student'} 
-          initialSessions={initialSessions as any}
+          initialSessions={initialSessions as ChatSession[]}
         />
       ) : (
         <AIKeyPrompt />

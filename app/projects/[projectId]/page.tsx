@@ -1,6 +1,7 @@
 import { getProjectById } from '@/lib/project-actions';
 import { notFound } from 'next/navigation';
 import { ProjectInterface } from './ProjectInterface';
+import { ProjectWithDocs } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
 
@@ -12,7 +13,7 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
 
   return (
     <div className="flex flex-col animate-in fade-in duration-500">
-      <ProjectInterface project={project as any} />
+      <ProjectInterface project={project as ProjectWithDocs} />
     </div>
   );
 }

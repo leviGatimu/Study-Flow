@@ -1,119 +1,99 @@
 'use client';
 
-import { useState, useTransition } from 'react';
-import { addResource } from '@/lib/actions';
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, Link as LinkIcon, FileUp, Info } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Plus, Link as LinkIcon, FileText, UploadCloud, Loader2 } from 'lucide-react';
+import { addResource } from '@/lib/actions';
 
 export function AddResourceForm({ subject }: { subject: string }) {
   const [open, setOpen] = useState(false);
-  const [isPending, startTransition] = useTransition();
   const [type, setType] = useState<'LINK' | 'FILE'>('LINK');
+  const [isPending, setIsPending] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    setIsPending(true);
     const formData = new FormData(e.currentTarget);
     formData.append('subject', subject);
     formData.append('type', type);
-
-    startTransition(async () => {
+    
+    try {
       await addResource(formData);
       setOpen(false);
-    });
+    } catch (error) {
+      console.error(error);
+      alert('Failed to add resource. Make sure file size is reasonable.');
+    } finally {
+      setIsPending(false);
+    }
   };
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button className="rounded-2xl h-12 px-6 font-heading font-black shadow-lg shadow-primary/20 hover:shadow-primary/40 transition-all active:scale-95 text-base gap-2">
-          <Plus className="w-5 h-5" /> Add New Resource
+        <Button variant="outline" size="sm" className="h-10 rounded-2xl font-black text-[10px] uppercase tracking-widest border-border/60 hover:bg-primary/10 hover:text-primary transition-all">
+          <Plus className="w-3.5 h-3.5 mr-2" /> Add Material
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-xl rounded-[32px] p-0 overflow-hidden border shadow-2xl animate-in zoom-in-95 duration-200">
-        <div className="bg-card">
-          <DialogHeader className="p-8 border-b bg-muted/20">
-            <DialogTitle className="text-3xl font-heading font-black text-foreground">Add Resource</DialogTitle>
-            <p className="text-muted-foreground font-medium mt-1">Upload a file or save a link for <span className="text-primary font-bold">{subject}</span>.</p>
-          </DialogHeader>
-
-          <div className="p-8">
-            <Tabs defaultValue="LINK" onValueChange={(v: string) => setType(v as any)} className="w-full">
-              <TabsList className="grid w-full grid-cols-2 rounded-2xl h-14 bg-muted/50 p-1.5 mb-8">
-                <TabsTrigger value="LINK" className="rounded-xl font-bold gap-2 data-[state=active]:bg-card data-[state=active]:shadow-sm">
-                  <LinkIcon className="w-4 h-4" /> Web Link
-                </TabsTrigger>
-                <TabsTrigger value="FILE" className="rounded-xl font-bold gap-2 data-[state=active]:bg-card data-[state=active]:shadow-sm">
-                  <FileUp className="w-4 h-4" /> Local File
-                </TabsTrigger>
-              </TabsList>
-
-              <form onSubmit={handleSubmit} className="space-y-6">
-                <div className="space-y-2">
-                  <Label className="text-xs font-black text-muted-foreground uppercase tracking-widest ml-1">Resource Title</Label>
-                  <Input 
-                    name="title" 
-                    required 
-                    className="h-12 rounded-xl bg-muted/30 border-border/60 font-bold px-4" 
-                    placeholder="e.g. Textbook Chapter 4, Lecture Notes..." 
-                  />
-                </div>
-
-                <TabsContent value="LINK" className="mt-0 space-y-4">
-                  <div className="space-y-2">
-                    <Label className="text-xs font-black text-muted-foreground uppercase tracking-widest ml-1">URL / Link</Label>
-                    <Input 
-                      name="url" 
-                      required={type === 'LINK'} 
-                      type="url"
-                      className="h-12 rounded-xl bg-muted/30 border-border/60 font-bold px-4" 
-                      placeholder="https://google.com/..." 
-                    />
-                  </div>
-                </TabsContent>
-
-                <TabsContent value="FILE" className="mt-0 space-y-4">
-                  <div className="space-y-2">
-                    <Label className="text-xs font-black text-muted-foreground uppercase tracking-widest ml-1">Upload File</Label>
-                    <div className="relative">
-                      <Input 
-                        name="file" 
-                        required={type === 'FILE'} 
-                        type="file"
-                        className="h-12 rounded-xl bg-muted/30 border-border/60 font-bold px-4 pt-2 cursor-pointer file:hidden" 
-                      />
-                      <FileUp className="absolute right-4 top-3.5 w-5 h-5 text-muted-foreground pointer-events-none" />
-                    </div>
-                    <p className="text-[10px] text-muted-foreground flex items-center gap-1.5 ml-1 mt-2">
-                      <Info className="w-3 h-3" /> Files are stored locally in your project uploads folder.
-                    </p>
-                  </div>
-                </TabsContent>
-
-                <div className="flex gap-4 pt-4">
-                  <Button 
-                    variant="ghost" 
-                    type="button" 
-                    onClick={() => setOpen(false)} 
-                    className="flex-1 h-12 rounded-xl font-bold text-muted-foreground"
-                  >
-                    Cancel
-                  </Button>
-                  <Button 
-                    disabled={isPending} 
-                    type="submit" 
-                    className="flex-[2] h-12 rounded-xl font-heading font-black shadow-lg shadow-primary/20 transition-all"
-                  >
-                    {isPending ? 'Saving...' : 'Save Resource'}
-                  </Button>
-                </div>
-              </form>
-            </Tabs>
+      <DialogContent className="sm:max-w-md rounded-[32px] p-8 border shadow-2xl animate-in zoom-in-95 duration-300">
+        <DialogHeader>
+          <DialogTitle className="text-3xl font-heading font-black tracking-tighter">Add Resource</DialogTitle>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="space-y-6 mt-4">
+          <div className="space-y-2">
+            <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Title</Label>
+            <Input name="title" placeholder="e.g., Chapter 1 Notes" required className="h-12 rounded-2xl bg-muted/30 border-border/40 font-bold px-4" />
           </div>
-        </div>
+
+          <div className="space-y-2">
+            <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Resource Type</Label>
+            <Select value={type} onValueChange={(val: 'LINK' | 'FILE') => setType(val)}>
+              <SelectTrigger className="h-12 rounded-2xl bg-muted/30 border-border/40 font-bold">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent className="rounded-2xl border-border/40 font-bold">
+                <SelectItem value="LINK" className="rounded-xl">Web Link / URL</SelectItem>
+                <SelectItem value="FILE" className="rounded-xl">PDF / Document File</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {type === 'LINK' ? (
+            <div className="space-y-2 animate-in slide-in-from-top-2 duration-300">
+              <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">URL</Label>
+              <div className="relative">
+                <LinkIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input name="url" type="url" placeholder="https://..." required className="h-12 rounded-2xl bg-muted/30 border-border/40 font-bold pl-12" />
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-2 animate-in slide-in-from-top-2 duration-300">
+              <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Upload File</Label>
+              <div className="relative group">
+                <Input name="file" type="file" required className="h-24 rounded-2xl bg-muted/30 border-2 border-dashed border-border/40 font-bold p-8 flex items-center justify-center cursor-pointer hover:bg-muted/50 transition-colors file:hidden" />
+                <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none text-muted-foreground group-hover:text-primary transition-colors">
+                  <UploadCloud className="w-6 h-6 mb-2" />
+                  <span className="text-xs font-black uppercase tracking-widest">Select PDF or Image</span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <Button type="submit" disabled={isPending} className="w-full h-14 rounded-2xl font-heading font-black shadow-lg shadow-primary/20 gap-2">
+            {isPending ? <Loader2 className="w-5 h-5 animate-spin" /> : type === 'FILE' ? <FileText className="w-5 h-5" /> : <LinkIcon className="w-5 h-5" />}
+            {isPending ? 'UPLOADING...' : 'ADD TO REPOSITORY'}
+          </Button>
+        </form>
       </DialogContent>
     </Dialog>
   );

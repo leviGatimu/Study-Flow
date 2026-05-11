@@ -2,38 +2,40 @@
 
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Clock, Play, Pause, RotateCcw } from 'lucide-react';
+import { Clock } from 'lucide-react';
 
 export function FocusTimer({ endTime }: { endTime: string }) {
   const [timeLeft, setTimeLeft] = useState<{h: number, m: number, s: number} | null>(null);
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    setMounted(true);
-    const calculateTime = () => {
-      const now = new Date();
-      const [endH, endM] = endTime.split(':').map(Number);
-      
-      const end = new Date();
-      end.setHours(endH, endM, 0, 0);
+    setTimeout(() => {
+      setMounted(m => m === false ? true : m);
+      const calculateTime = () => {
+        const now = new Date();
+        const [endH, endM] = endTime.split(':').map(Number);
+        
+        const end = new Date();
+        end.setHours(endH, endM, 0, 0);
 
-      const diff = end.getTime() - now.getTime();
+        const diff = end.getTime() - now.getTime();
 
-      if (diff <= 0) {
-        setTimeLeft({ h: 0, m: 0, s: 0 });
-        return;
-      }
+        if (diff <= 0) {
+          setTimeLeft({ h: 0, m: 0, s: 0 });
+          return;
+        }
 
-      const h = Math.floor(diff / (1000 * 60 * 60));
-      const m = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-      const s = Math.floor((diff % (1000 * 60)) / 1000);
+        const h = Math.floor(diff / (1000 * 60 * 60));
+        const m = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+        const s = Math.floor((diff % (1000 * 60)) / 1000);
 
-      setTimeLeft({ h, m, s });
-    };
+        setTimeLeft({ h, m, s });
+      };
 
-    calculateTime();
-    const interval = setInterval(calculateTime, 1000);
-    return () => clearInterval(interval);
+      calculateTime();
+      const interval = setInterval(calculateTime, 1000);
+      return () => clearInterval(interval);
+    }, 0);
   }, [endTime]);
 
   if (!mounted || !timeLeft) return null;

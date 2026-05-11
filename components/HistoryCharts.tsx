@@ -1,125 +1,113 @@
 'use client';
 
-import { Bar, BarChart, ResponsiveContainer, YAxis, Tooltip, Area, AreaChart, CartesianGrid, XAxis, PieChart, Pie, Cell, Legend } from 'recharts';
-import { format, subDays, isSameDay } from 'date-fns';
+import { 
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, 
+  Tooltip, ResponsiveContainer, Cell, PieChart, Pie
+} from 'recharts';
+import { TaskWithTemplate } from '@/lib/types';
 
-type ChartData = {
-  date: string;
-  homework: number;
-  revision: number;
-  total: number;
-};
+export function HistoryCharts({ tasks }: { tasks: TaskWithTemplate[] }) {
+  // 1. Data for Subject Breakdown (Minutes)
+  const breakdown: Record<string, number> = {};
+  tasks.filter(t => t.isDone).forEach(t => {
+    const [sH, sM] = t.startTime.split(':').map(Number);
+    const [eH, eM] = t.endTime.split(':').map(Number);
+    const mins = (eH * 60 + eM) - (sH * 60 + sM);
+    const subject = t.subject.replace(/\s*\(revision\)\s*/gi, '');
+    breakdown[subject] = (breakdown[subject] || 0) + mins;
+  });
 
-const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4'];
+  const pieData = Object.entries(breakdown).map(([name, value]) => ({ name, value }));
+  const COLORS = ['#3b82f6', '#f97316', '#8b5cf6', '#10b981', '#ef4444', '#f59e0b'];
 
-export function HistoryCharts({ tasks }: { tasks: any[] }) {
-  // Generate data for the last 14 days
-  const data: ChartData[] = [];
-  for (let i = 13; i >= 0; i--) {
-    const d = subDays(new Date(), i);
-    const dayTasks = tasks.filter(t => isSameDay(new Date(t.date), d));
-    
-    data.push({
-      date: format(d, 'MMM d'),
-      homework: dayTasks.filter(t => t.type === 'HOMEWORK').length,
-      revision: dayTasks.filter(t => t.type === 'REVISION').length,
-      total: dayTasks.length
-    });
-  }
-
-  // Generate data for Subject Distribution Pie Chart
-  const subjectCounts = tasks.filter(t => t.isDone).reduce((acc: any, task: any) => {
-    acc[task.subject] = (acc[task.subject] || 0) + 1;
-    return acc;
-  }, {});
-
-  const pieData = Object.keys(subjectCounts).map(subject => ({
-    name: subject,
-    value: subjectCounts[subject]
-  }));
+  // 2. Data for Success Rate (Done vs Missed)
+  const doneCount = tasks.filter(t => t.isDone).length;
+  const missedCount = tasks.filter(t => t.isMissed).length;
+  const barData = [
+    { name: 'Completed', count: doneCount, fill: '#10b981' },
+    { name: 'Missed', count: missedCount, fill: '#ef4444' },
+  ];
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-      {/* Area Chart: Activity Trend */}
-      <div className="bg-card border border-border/60 p-6 rounded-3xl shadow-sm relative overflow-hidden">
-        <h3 className="font-heading font-bold text-lg mb-6">Activity Trend (14 Days)</h3>
-        <div className="h-[300px] w-full">
-          <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={data}>
-              <defs>
-                <linearGradient id="colorTotal" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="var(--primary)" stopOpacity={0.3}/>
-                  <stop offset="95%" stopColor="var(--primary)" stopOpacity={0}/>
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" opacity={0.4} />
-              <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{fontSize: 10, fontWeight: 'bold'}} dy={10} />
-              <YAxis axisLine={false} tickLine={false} tick={{fontSize: 10, fontWeight: 'bold'}} />
-              <Tooltip 
-                contentStyle={{ borderRadius: '16px', border: '1px solid var(--border)', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
-              />
-              <Area type="monotone" dataKey="total" stroke="var(--primary)" strokeWidth={3} fillOpacity={1} fill="url(#colorTotal)" />
-            </AreaChart>
-          </ResponsiveContainer>
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      {/* Subject Distribution */}
+      <div className="bg-card border border-border/60 p-8 rounded-[40px] shadow-sm">
+        <h3 className="text-xl font-heading font-black mb-8 tracking-tight">Time Distribution</h3>
+        <div className="h-[350px] w-full">
+           <ResponsiveContainer width="100%" height="100%">
+             <PieChart>
+               <Pie
+                 data={pieData}
+                 cx="50%"
+                 cy="50%"
+                 innerRadius={80}
+                 outerRadius={120}
+                 paddingAngle={5}
+                 dataKey="value"
+                 stroke="none"
+               >
+                 {pieData.map((_entry, index) => (
+                   <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                 ))}
+               </Pie>
+               <Tooltip 
+                contentStyle={{ 
+                  borderRadius: '20px', 
+                  border: 'none', 
+                  boxShadow: '0 10px 30px rgba(0,0,0,0.1)',
+                  fontWeight: 'bold',
+                  fontSize: '12px'
+                }} 
+               />
+             </PieChart>
+           </ResponsiveContainer>
+        </div>
+        <div className="grid grid-cols-2 gap-4 mt-4">
+           {pieData.map((item, i) => (
+             <div key={item.name} className="flex items-center gap-2">
+               <div className="w-3 h-3 rounded-full" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
+               <span className="text-xs font-bold text-muted-foreground truncate">{item.name}</span>
+             </div>
+           ))}
         </div>
       </div>
 
-      {/* Bar Chart: Distribution */}
-      <div className="bg-card border border-border/60 p-6 rounded-3xl shadow-sm relative overflow-hidden">
-        <h3 className="font-heading font-bold text-lg mb-6">Homework vs Revision</h3>
-        <div className="h-[300px] w-full">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={data}>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" opacity={0.4} />
-              <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{fontSize: 10, fontWeight: 'bold'}} dy={10} />
-              <YAxis axisLine={false} tickLine={false} tick={{fontSize: 10, fontWeight: 'bold'}} />
-              <Tooltip 
-                contentStyle={{ borderRadius: '16px', border: '1px solid var(--border)', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
-              />
-              <Bar dataKey="homework" stackId="a" fill="var(--primary)" radius={[0, 0, 0, 0]} />
-              <Bar dataKey="revision" stackId="a" fill="oklch(0.65 0.15 45)" radius={[4, 4, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
+      {/* Completion Velocity */}
+      <div className="bg-card border border-border/60 p-8 rounded-[40px] shadow-sm">
+        <h3 className="text-xl font-heading font-black mb-8 tracking-tight">Consistency Ratio</h3>
+        <div className="h-[350px] w-full">
+           <ResponsiveContainer width="100%" height="100%">
+             <BarChart data={barData}>
+               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+               <XAxis 
+                dataKey="name" 
+                axisLine={false} 
+                tickLine={false} 
+                tick={{ fontSize: 12, fontWeight: 'bold' }} 
+               />
+               <YAxis hide />
+               <Tooltip 
+                 cursor={{ fill: 'transparent' }}
+                 contentStyle={{ 
+                  borderRadius: '20px', 
+                  border: 'none', 
+                  boxShadow: '0 10px 30px rgba(0,0,0,0.1)',
+                  fontWeight: 'bold'
+                }} 
+               />
+               <Bar dataKey="count" radius={[15, 15, 0, 0]} barSize={60}>
+                 {barData.map((entry, index) => (
+                   <Cell key={`cell-${index}`} fill={entry.fill} />
+                 ))}
+               </Bar>
+             </BarChart>
+           </ResponsiveContainer>
         </div>
-      </div>
-
-      {/* Pie Chart: Subject Distribution */}
-      <div className="bg-card border border-border/60 p-6 rounded-3xl shadow-sm relative overflow-hidden">
-        <h3 className="font-heading font-bold text-lg mb-6">Completed by Subject</h3>
-        <div className="h-[300px] w-full">
-          <ResponsiveContainer width="100%" height="100%">
-            {pieData.length > 0 ? (
-              <PieChart>
-                <Pie
-                  data={pieData}
-                  cx="50%"
-                  cy="45%"
-                  innerRadius={60}
-                  outerRadius={90}
-                  paddingAngle={5}
-                  dataKey="value"
-                >
-                  {pieData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip 
-                  contentStyle={{ borderRadius: '16px', border: '1px solid var(--border)', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
-                  itemStyle={{ fontWeight: 'bold' }}
-                />
-                <Legend 
-                  verticalAlign="bottom" 
-                  height={36} 
-                  iconType="circle" 
-                  wrapperStyle={{ fontSize: '12px', fontWeight: 'bold', paddingTop: '20px' }}
-                />
-              </PieChart>
-            ) : (
-              <div className="flex items-center justify-center h-full text-muted-foreground font-bold text-sm italic">
-                No completed tasks yet.
-              </div>
-            )}
-          </ResponsiveContainer>
+        <div className="mt-8 p-6 bg-muted/30 rounded-3xl border border-border/40">
+           <p className="text-sm font-bold text-muted-foreground leading-relaxed">
+             You have completed <span className="text-success">{doneCount} sessions</span> total. 
+             Keep pushing to minimize the red bars!
+           </p>
         </div>
       </div>
     </div>

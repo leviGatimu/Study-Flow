@@ -1,5 +1,6 @@
 import { getAllTasks, getMarkedDays } from '@/lib/actions';
 import { CalendarGrid } from '@/components/CalendarGrid';
+import { TaskWithTemplate } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -22,7 +23,7 @@ export default async function CalendarPage() {
       
       <div className="animate-in slide-in-from-bottom-4 duration-500 px-4 md:px-8 pb-16">
         <div className="max-w-[1600px] mx-auto">
-          <CalendarGrid tasks={tasks as any} markedDays={markedDays} />
+          <CalendarGrid tasks={tasks as TaskWithTemplate[]} markedDays={markedDays} />
         </div>
       </div>
     </div>

@@ -8,21 +8,23 @@ export function RwandaClock() {
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    setMounted(true);
-    const updateTime = () => {
-      const rwandaTime = new Date().toLocaleTimeString('en-US', {
-        timeZone: 'Africa/Kigali',
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
-        hour12: true,
-      });
-      setTime(rwandaTime);
-    };
-    
-    updateTime(); // Initial call
-    const interval = setInterval(updateTime, 1000);
-    return () => clearInterval(interval);
+    setTimeout(() => {
+      setMounted(m => m === false ? true : m);
+      const updateTime = () => {
+        const rwandaTime = new Date().toLocaleTimeString('en-US', {
+          timeZone: 'Africa/Kigali',
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit',
+          hour12: true,
+        });
+        setTime(rwandaTime);
+      };
+      
+      updateTime(); // Initial call
+      const interval = setInterval(updateTime, 1000);
+      return () => clearInterval(interval);
+    }, 0);
   }, []);
 
   if (!mounted) {
