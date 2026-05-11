@@ -1,4 +1,4 @@
-import { PrismaClient } from '../lib/generated/prisma_v12';
+import { PrismaClient } from '../lib/generated/prisma_v16';
 
 const prisma = new PrismaClient();
 
@@ -28,9 +28,17 @@ async function main() {
   ];
 
   for (const template of templates) {
+    let user = await prisma.user.findFirst();
+    if (!user) {
+      user = await prisma.user.create({
+        data: { username: 'demo', passwordHash: 'dummy' }
+      });
+    }
+
     // Check if a template for this specific time/day/subject already exists
     const exists = await prisma.scheduleTemplate.findFirst({
       where: {
+        userId: user.id,
         dayOfWeek: template.dayOfWeek,
         subject: template.subject,
         startTime: template.startTime
@@ -38,7 +46,7 @@ async function main() {
     });
 
     if (!exists) {
-      await prisma.scheduleTemplate.create({ data: template });
+      await prisma.scheduleTemplate.create({ data: { ...template, userId: user.id } });
       console.log(`+ Added missing template: ${template.subject} (${template.startTime})`);
     }
   }

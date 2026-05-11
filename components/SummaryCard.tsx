@@ -5,7 +5,7 @@ import { format } from 'date-fns';
 import { Download, FileText, ChevronRight, Clock, Trophy, BookOpen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import html2canvas from 'html2canvas';
+import { toPng } from 'html-to-image';
 import jsPDF from 'jspdf';
 
 type SummaryType = {
@@ -29,24 +29,23 @@ export function SummaryCard({ summary }: { summary: SummaryType }) {
     setIsPending(true);
     
     try {
-      const canvas = await html2canvas(reportRef.current, {
-        scale: 2,
-        useCORS: true,
-        backgroundColor: '#ffffff'
+      const dataUrl = await toPng(reportRef.current, {
+        quality: 1,
+        backgroundColor: '#ffffff',
+        pixelRatio: 2
       });
       
-      const imgData = canvas.toDataURL('image/png');
       const pdf = new jsPDF({
         orientation: 'portrait',
         unit: 'mm',
         format: 'a4'
       });
       
-      const imgProps = pdf.getImageProperties(imgData);
+      const imgProps = pdf.getImageProperties(dataUrl);
       const pdfWidth = pdf.internal.pageSize.getWidth();
       const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
       
-      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+      pdf.addImage(dataUrl, 'PNG', 0, 0, pdfWidth, pdfHeight);
       pdf.save(`Study_Report_${format(new Date(summary.startDate), 'MMM_d')}.pdf`);
     } catch (error) {
       console.error('PDF Generation failed', error);
@@ -87,7 +86,10 @@ export function SummaryCard({ summary }: { summary: SummaryType }) {
         </div>
       </DialogTrigger>
       
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto rounded-[40px] p-0 border-none shadow-2xl">
+      <DialogContent className="sm:max-w-4xl w-[95vw] max-h-[90vh] overflow-y-auto rounded-[40px] p-0 border-none shadow-2xl">
+        <DialogHeader className="sr-only">
+          <DialogTitle>Weekly Performance Report</DialogTitle>
+        </DialogHeader>
         <div className="flex flex-col h-full">
           {/* The Actual Report for Export */}
           <div ref={reportRef} className="bg-white p-12 text-black">

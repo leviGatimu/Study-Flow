@@ -1,7 +1,7 @@
 import { getHistoryTasks, syncStreak } from '@/lib/actions';
 import { HistoryCharts } from '@/components/HistoryCharts';
 import { format } from 'date-fns';
-import { CheckCircle2, BookOpen, Repeat, Trophy, XCircle } from 'lucide-react';
+import { CheckCircle2, BookOpen, Repeat, Trophy, XCircle, Zap, Clock } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -15,6 +15,11 @@ export default async function HistoryPage() {
   const revisions = tasks.filter(t => t.isDone && t.type === 'REVISION').length;
   const missedCount = tasks.filter(t => t.isMissed).length;
 
+  const totalMinutes = userProgress?.totalFocusMinutes || 0;
+  const hours = Math.floor(totalMinutes / 60);
+  const mins = totalMinutes % 60;
+  const timeStudied = hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
+
   return (
     <div className="space-y-12 max-w-[1600px] mx-auto animate-in fade-in duration-500 pb-16">
       <div className="pt-6 pb-2 border-b border-border/40">
@@ -25,7 +30,7 @@ export default async function HistoryPage() {
       </div>
 
       {/* Stats Overview */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-6">
         <StatCard 
           label="Homeworks Done" 
           value={homeworks} 
@@ -37,6 +42,18 @@ export default async function HistoryPage() {
           value={revisions} 
           icon={<Repeat className="w-6 h-6 text-orange-500" />} 
           description="Study sessions completed"
+        />
+        <StatCard 
+          label="Focus Sessions" 
+          value={userProgress?.focusSessions || 0} 
+          icon={<Zap className="w-6 h-6 text-purple-500" />} 
+          description="Total sessions completed"
+        />
+        <StatCard 
+          label="Time Studied" 
+          value={timeStudied} 
+          icon={<Clock className="w-6 h-6 text-teal-500" />} 
+          description="Total hours in focus"
         />
         <StatCard 
           label="Tasks Missed" 

@@ -1,21 +1,29 @@
 import { getAllTasks, getMarkedDays } from '@/lib/actions';
 import { CalendarGrid } from '@/components/CalendarGrid';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export default async function CalendarPage() {
   const tasks = await getAllTasks();
   const markedDays = await getMarkedDays();
 
   return (
-    <div className="space-y-6 flex flex-col animate-in fade-in duration-500 max-w-[1600px] mx-auto h-full">
-      <div className="pt-2 pb-2 border-b border-border/40 shrink-0">
-        <h1 className="text-4xl font-heading font-black tracking-tight text-foreground">Calendar</h1>
-        <p className="text-lg text-muted-foreground font-semibold mt-1">
-          Overview of your study blocks and deadlines.
-        </p>
+    <div className="flex flex-col animate-in fade-in duration-500">
+      {/* Sticky Header */}
+      <div className="sticky top-0 z-30 bg-background/80 backdrop-blur-md px-4 md:px-8 pt-10 pb-6 border-b border-border/40 shrink-0 mb-8">
+        <div className="max-w-[1600px] mx-auto">
+          <h1 className="text-5xl font-heading font-black tracking-tight text-foreground">Calendar</h1>
+          <p className="text-xl text-muted-foreground font-semibold mt-3">
+            Overview of your study blocks and deadlines.
+          </p>
+        </div>
       </div>
       
-      <div className="flex-1 min-h-0 animate-in slide-in-from-bottom-4 duration-500 overflow-hidden">
-        <CalendarGrid tasks={tasks} markedDays={markedDays} />
+      <div className="animate-in slide-in-from-bottom-4 duration-500 px-4 md:px-8 pb-16">
+        <div className="max-w-[1600px] mx-auto">
+          <CalendarGrid tasks={tasks as any} markedDays={markedDays} />
+        </div>
       </div>
     </div>
   );

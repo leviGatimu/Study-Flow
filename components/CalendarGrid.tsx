@@ -78,7 +78,7 @@ export function CalendarGrid({ tasks, markedDays = [] }: { tasks: TaskType[], ma
   };
 
   return (
-    <div className="flex flex-col h-full bg-card rounded-[32px] border border-border/60 shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-500">
+    <div className="flex flex-col bg-card rounded-[32px] border border-border/60 shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-500">
       <ConfirmModal 
         isOpen={!!deleteConfirmId}
         onClose={() => setDeleteConfirmId(null)}
@@ -116,7 +116,7 @@ export function CalendarGrid({ tasks, markedDays = [] }: { tasks: TaskType[], ma
       </div>
 
       {/* Grid */}
-      <div className="grid grid-cols-7 flex-1 bg-border/40 gap-px overflow-y-auto min-h-0">
+      <div className="grid grid-cols-7 bg-border/40 gap-px">
         {prefixDays.map((_, i) => (
           <div key={`prefix-${i}`} className="bg-muted/5 min-h-[140px]" />
         ))}

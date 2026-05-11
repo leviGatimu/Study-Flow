@@ -3,10 +3,13 @@
 import { prisma } from '@/lib/prisma';
 import { startOfDay, endOfDay, addDays, isSameDay, differenceInDays, format } from 'date-fns';
 import { revalidatePath } from 'next/cache';
+import { redirect } from 'next/navigation';
 import { writeFile, unlink } from 'fs/promises';
 import { join } from 'path';
 import { getUserId, login, logout } from '@/lib/auth';
 import bcrypt from 'bcryptjs';
+
+import { addXp } from './gamification';
 
 /**
  * AUTH: Login user
@@ -54,7 +57,7 @@ export async function registerUser(formData: FormData) {
  */
 export async function logoutUser() {
   await logout();
-  revalidatePath('/');
+  redirect('/welcome');
 }
 
 /**
@@ -217,13 +220,18 @@ export async function toggleTaskDone(taskId: string, isDone: boolean) {
   const userId = await getUserId();
   if (!userId) return;
 
-  await prisma.task.update({
+  await prisma.task.updateMany({
     where: { id: taskId, userId },
     data: { 
       isDone,
       isMissed: isDone ? false : undefined 
     }
   });
+
+  if (isDone) {
+    await addXp(userId, 100);
+  }
+
   revalidatePath('/');
   revalidatePath('/history');
   revalidatePath('/calendar');
@@ -237,7 +245,7 @@ export async function toggleTaskMissed(taskId: string, isMissed: boolean) {
   const userId = await getUserId();
   if (!userId) return;
 
-  await prisma.task.update({
+  await prisma.task.updateMany({
     where: { id: taskId, userId },
     data: { 
       isMissed,
@@ -258,7 +266,7 @@ export async function deleteTask(taskId: string) {
   if (!userId) return { success: false };
 
   try {
-    await prisma.task.update({
+    await prisma.task.updateMany({
       where: { id: taskId, userId },
       data: { isDeleted: true }
     });
@@ -310,7 +318,7 @@ export async function deleteTemplate(id: string) {
   const userId = await getUserId();
   if (!userId) return;
 
-  await prisma.scheduleTemplate.delete({ where: { id, userId } });
+  await prisma.scheduleTemplate.deleteMany({ where: { id, userId } });
   revalidatePath('/manage');
 }
 
@@ -335,15 +343,17 @@ export async function createTemplate(data: {
 }
 
 /**
- * Update an existing task
+ * Update an existing task (move day or change time)
  */
 export async function updateTask(taskId: string, data: { date?: Date, startTime?: string, endTime?: string }) {
   const userId = await getUserId();
   if (!userId) return;
 
   const existing = await prisma.task.findUnique({
-    where: { id: taskId, userId }
+    where: { id: taskId }
   });
+
+  if (existing?.userId !== userId) return;
 
   if (!existing) return;
 
@@ -351,8 +361,8 @@ export async function updateTask(taskId: string, data: { date?: Date, startTime?
     data.date = startOfDay(data.date);
 
     if (existing.templateId && !isSameDay(existing.date, data.date)) {
-      await prisma.task.update({
-        where: { id: taskId },
+      await prisma.task.updateMany({
+        where: { id: taskId, userId },
         data: { isDeleted: true }
       });
 
@@ -377,7 +387,7 @@ export async function updateTask(taskId: string, data: { date?: Date, startTime?
     }
   }
 
-  await prisma.task.update({
+  await prisma.task.updateMany({
     where: { id: taskId, userId },
     data
   });
@@ -444,10 +454,13 @@ export async function syncStreak() {
   } else if (!isSameDay(lastDate, today)) {
     const diff = differenceInDays(today, lastDate);
     let newStreak = 1;
-    if (diff === 1) newStreak = progress.currentStreak + 1;
+    if (diff === 1) {
+      newStreak = progress.currentStreak + 1;
+      await addXp(userId, 50 * newStreak); // Streak bonus
+    }
     const newLongest = Math.max(newStreak, progress.longestStreak);
     progress = await prisma.userProgress.update({
-      where: { id: 'user-id' }, // This was likely causing issues, fixing to userId
+      where: { userId },
       data: { currentStreak: newStreak, longestStreak: newLongest, lastActiveDate: today }
     });
   }
@@ -468,7 +481,7 @@ export async function updateTemplate(id: string, data: {
   const userId = await getUserId();
   if (!userId) return;
 
-  await prisma.scheduleTemplate.update({ 
+  await prisma.scheduleTemplate.updateMany({ 
     where: { id, userId }, 
     data 
   });
@@ -547,7 +560,7 @@ export async function deleteResource(id: string, subject: string) {
   if (!userId) return;
 
   const normalized = normalizeSubject(subject);
-  const resource = await prisma.resource.findUnique({ where: { id, userId } });
+  const resource = await prisma.resource.findFirst({ where: { id, userId } });
   if (resource && resource.type === 'FILE') {
     try {
       const filename = resource.url.replace('/uploads/', '');
@@ -555,7 +568,7 @@ export async function deleteResource(id: string, subject: string) {
       await unlink(path);
     } catch (e) { console.error(e); }
   }
-  await prisma.resource.delete({ where: { id, userId } });
+  await prisma.resource.deleteMany({ where: { id, userId } });
   revalidatePath('/resources');
   revalidatePath(`/resources/${encodeURIComponent(normalized)}`);
   revalidatePath(`/focus`);
@@ -568,10 +581,13 @@ export async function getTaskById(id: string) {
   const userId = await getUserId();
   if (!userId) return null;
 
-  return prisma.task.findUnique({ 
-    where: { id, userId }, 
+  const task = await prisma.task.findUnique({ 
+    where: { id }, 
     include: { template: true } 
   });
+
+  if (!task || task.userId !== userId) return null;
+  return task;
 }
 
 /**
@@ -607,7 +623,7 @@ export async function deleteEvent(id: string) {
   const userId = await getUserId();
   if (!userId) return;
 
-  await prisma.examEvent.delete({ where: { id, userId } });
+  await prisma.examEvent.deleteMany({ where: { id, userId } });
   revalidatePath('/');
 }
 
@@ -722,7 +738,7 @@ export async function toggleMasteryItem(id: string, isCompleted: boolean, subjec
   if (!userId) return;
 
   const normalized = normalizeSubject(subject);
-  await prisma.masteryItem.update({
+  await prisma.masteryItem.updateMany({
     where: { id, userId },
     data: { isCompleted }
   });
@@ -738,7 +754,7 @@ export async function deleteMasteryItem(id: string, subject: string) {
   if (!userId) return;
 
   const normalized = normalizeSubject(subject);
-  await prisma.masteryItem.delete({ where: { id, userId } });
+  await prisma.masteryItem.deleteMany({ where: { id, userId } });
   revalidatePath('/resources');
   revalidatePath(`/resources/${encodeURIComponent(normalized)}`);
 }
@@ -759,6 +775,22 @@ export async function updateUserName(name: string) {
 }
 
 /**
+ * Update Gemini API Key
+ */
+export async function updateGeminiKey(key: string) {
+  const userId = await getUserId();
+  if (!userId) return;
+
+  await prisma.userProgress.upsert({
+    where: { userId },
+    update: { geminiApiKey: key },
+    create: { userId, geminiApiKey: key }
+  });
+  revalidatePath('/settings');
+  revalidatePath('/ai');
+}
+
+/**
  * DEBUG/MAINTENANCE: Clear all tasks
  */
 export async function clearAllTasks() {
@@ -768,4 +800,30 @@ export async function clearAllTasks() {
   await prisma.task.deleteMany({ where: { userId } });
   revalidatePath('/');
   revalidatePath('/calendar');
+}
+
+/**
+ * Log a focus session completion
+ */
+export async function logFocusSession(durationMinutes: number) {
+  const userId = await getUserId();
+  if (!userId) return;
+
+  await prisma.userProgress.upsert({
+    where: { userId },
+    update: {
+      focusSessions: { increment: 1 },
+      totalFocusMinutes: { increment: durationMinutes }
+    },
+    create: {
+      userId,
+      focusSessions: 1,
+      totalFocusMinutes: durationMinutes
+    },
+  });
+
+  // Grant XP: 10 XP per minute of focus
+  await addXp(userId, durationMinutes * 10);
+
+  revalidatePath('/history');
 }

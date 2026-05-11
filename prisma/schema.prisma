@@ -1,6 +1,6 @@
 generator client {
   provider = "prisma-client-js"
-  output   = "../lib/generated/prisma_v14"
+  output   = "../lib/generated/prisma_v19"
 }
 
 datasource db {
@@ -21,6 +21,50 @@ model User {
   masteryItems      MasteryItem[]
   markedDays        MarkedDay[]
   progress          UserProgress?
+  chatSessions      ChatSession[]
+  projects          Project[]
+}
+
+model Project {
+  id          String       @id @default(cuid())
+  userId      String
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title       String
+  description String?
+  status      String       @default("ACTIVE") // "ACTIVE" | "COMPLETED" | "ARCHIVED"
+  progress    Int          @default(0)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  docs        ProjectDoc[]
+}
+
+model ProjectDoc {
+  id        String   @id @default(cuid())
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  title     String
+  content   String   // Markdown or plain text content
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model ChatSession {
+  id        String        @id @default(cuid())
+  userId    String
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String        @default("New Chat")
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+  messages  ChatMessage[]
+}
+
+model ChatMessage {
+  id        String      @id @default(cuid())
+  sessionId String
+  session   ChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  role      String      // "user" or "model"
+  content   String
+  createdAt DateTime    @default(now())
 }
 
 model ScheduleTemplate {
@@ -71,6 +115,11 @@ model UserProgress {
   currentStreak  Int       @default(0)
   longestStreak  Int       @default(0)
   lastActiveDate DateTime?
+  geminiApiKey   String?   // Added for AI Study Buddy
+  focusSessions  Int       @default(0)
+  totalFocusMinutes Int    @default(0)
+  xp             Int       @default(0)
+  level          Int       @default(1)
 }
 
 model Resource {

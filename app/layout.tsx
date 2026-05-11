@@ -1,44 +1,41 @@
 import type { Metadata } from "next";
-import { Outfit, Nunito } from "next/font/google";
 import "./globals.css";
-import { Sidebar } from "@/components/Sidebar";
-import { ReminderManager } from "@/components/ReminderManager";
 import { ThemeProvider } from "@/components/ThemeProvider";
+import { AppShell } from "@/components/AppShell";
 
-const outfit = Outfit({
-  subsets: ["latin"],
-  variable: "--font-heading",
-});
-
-const nunito = Nunito({
-  subsets: ["latin"],
-  variable: "--font-sans",
-});
+import { getUserId } from "@/lib/auth";
+import { syncStreak } from "@/lib/actions";
 
 export const metadata: Metadata = {
-  title: "Study Tracker",
-  description: "A clean, private study and assignment tracker.",
+  title: "Study Flow | Elite Academic Workstation",
+  description: "A clean, private study and assignment tracker for top students.",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const userId = await getUserId();
+  const userProgress = userId ? await syncStreak() : null;
+
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className="flex h-screen w-screen overflow-hidden bg-background font-sans text-foreground antialiased relative">
+      <body 
+        className="flex h-screen w-screen overflow-hidden bg-background font-sans text-foreground antialiased relative"
+        style={{
+          ["--font-sans" as string]: '"Nunito", "Avenir Next", "Segoe UI", sans-serif',
+          ["--font-heading" as string]: '"Outfit", "Segoe UI", sans-serif',
+        }}
+        suppressHydrationWarning
+      >
         <ThemeProvider
           attribute="class"
           defaultTheme="system"
           enableSystem
           disableTransitionOnChange
         >
-          <ReminderManager />
-          <Sidebar />
-          <main className="flex-1 overflow-y-auto p-4 md:p-8 z-10 relative">
-            {children}
-          </main>
+          <AppShell userProgress={userProgress}>{children}</AppShell>
         </ThemeProvider>
       </body>
     </html>

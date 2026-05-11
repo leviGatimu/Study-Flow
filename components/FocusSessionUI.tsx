@@ -5,13 +5,13 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Volume2, VolumeX, Maximize2, Minimize2, 
   Play, Pause, Flame, Zap, CheckCircle2, 
-  ArrowLeft, ListTodo, X
+  ArrowLeft, ListTodo, X, Trophy, BookOpen, FileText, Plus
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Slider } from '@/components/ui/slider';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
+import { logFocusSession } from '@/lib/actions';
 import Link from 'next/link';
 
 interface FocusSessionProps {
@@ -20,9 +20,10 @@ interface FocusSessionProps {
 }
 
 export function FocusSessionUI({ task, resources }: FocusSessionProps) {
-  const [step, setSetp] = useState<'PREP' | 'FOCUS'>('PREP');
+  const [step, setStep] = useState<'PREP' | 'FOCUS' | 'DONE'>('PREP');
   const [intensity, setIntensity] = useState<'NORMAL' | 'INTENSE'>('NORMAL');
   const [goals, setGoals] = useState<string[]>(['']);
+  const [completedGoals, setCompletedGoals] = useState<boolean[]>([]);
   const [isFullScreen, setIsFullScreen] = useState(false);
   const [isMuted, setIsMuted] = useState(true);
   const [audioSource, setAudioSource] = useState('RAIN');
@@ -44,6 +45,16 @@ export function FocusSessionUI({ task, resources }: FocusSessionProps) {
       const diff = end.getTime() - now.getTime();
       if (diff <= 0) {
         setTimeLeft({ h: 0, m: 0, s: 0 });
+        setStep(prev => {
+          if (prev !== 'DONE') {
+            const [startH, startM] = (task.startTime || '00:00').split(':').map(Number);
+            const [endH, endM] = (task.endTime || '00:00').split(':').map(Number);
+            let duration = (endH * 60 + endM) - (startH * 60 + startM);
+            if (duration < 0) duration += 24 * 60;
+            logFocusSession(duration > 0 ? duration : 0);
+          }
+          return 'DONE';
+        });
         return;
       }
 
@@ -70,7 +81,8 @@ export function FocusSessionUI({ task, resources }: FocusSessionProps) {
   };
 
   const handleStartFocus = () => {
-    setSetp('FOCUS');
+    setStep('FOCUS');
+    setCompletedGoals(new Array(goals.length).fill(false));
     if (isFullScreen && !document.fullscreenElement) {
       containerRef.current?.requestFullscreen();
     }
@@ -83,10 +95,16 @@ export function FocusSessionUI({ task, resources }: FocusSessionProps) {
     setGoals(newGoals);
   };
 
+  const toggleGoal = (idx: number) => {
+    const newCompleted = [...completedGoals];
+    newCompleted[idx] = !newCompleted[idx];
+    setCompletedGoals(newCompleted);
+  };
+
   return (
     <div ref={containerRef} className={cn(
-      "min-h-screen transition-colors duration-1000 flex flex-col items-center justify-center p-6 sm:p-12 relative overflow-hidden",
-      step === 'PREP' ? "bg-background" : (intensity === 'INTENSE' ? "bg-slate-950 text-white" : "bg-slate-900 text-white")
+      "min-h-screen transition-all duration-1000 flex flex-col items-center justify-center p-6 sm:p-12 relative overflow-hidden",
+      step === 'PREP' ? "bg-background" : (step === 'DONE' ? "bg-emerald-600 text-white" : (intensity === 'INTENSE' ? "bg-slate-950 text-white" : "bg-slate-900 text-white"))
     )}>
       
       {/* Background Ambience */}
@@ -109,8 +127,8 @@ export function FocusSessionUI({ task, resources }: FocusSessionProps) {
 
       {/* HEADER / CONTROLS */}
       <div className="absolute top-8 left-8 right-8 flex items-center justify-between z-50">
-        <Link href="/">
-          <Button variant="ghost" className={cn("rounded-full gap-2 font-bold", step === 'FOCUS' && "text-white hover:bg-white/10")}>
+        <Link href="/focus">
+          <Button variant="ghost" className={cn("rounded-full gap-2 font-bold", (step === 'FOCUS' || step === 'DONE') && "text-white hover:bg-white/10")}>
             <ArrowLeft className="w-4 h-4" /> Exit
           </Button>
         </Link>
@@ -131,7 +149,7 @@ export function FocusSessionUI({ task, resources }: FocusSessionProps) {
           <Button 
             variant="ghost" 
             size="icon" 
-            className={cn("rounded-full bg-white/5 hover:bg-white/20", step === 'FOCUS' ? "text-white" : "text-foreground")}
+            className={cn("rounded-full bg-white/5 hover:bg-white/20", (step === 'FOCUS' || step === 'DONE') ? "text-white" : "text-foreground")}
             onClick={toggleFullScreen}
           >
             {isFullScreen ? <Minimize2 className="w-5 h-5" /> : <Maximize2 className="w-5 h-5" />}
@@ -250,12 +268,19 @@ export function FocusSessionUI({ task, resources }: FocusSessionProps) {
                     <motion.div 
                       key={i}
                       whileHover={{ x: 5 }}
-                      className="flex items-center gap-5 p-6 rounded-[24px] bg-white/5 border border-white/5 hover:bg-white/10 transition-all cursor-pointer group"
+                      onClick={() => toggleGoal(i)}
+                      className={cn(
+                        "flex items-center gap-5 p-6 rounded-[24px] border transition-all cursor-pointer group",
+                        completedGoals[i] ? "bg-primary/20 border-primary/50" : "bg-white/5 border-white/5 hover:bg-white/10"
+                      )}
                     >
-                      <div className="w-6 h-6 rounded-lg border-2 border-white/20 group-hover:border-primary transition-colors flex items-center justify-center">
-                        <CheckCircle2 className="w-4 h-4 text-primary opacity-0 group-hover:opacity-100" />
+                      <div className={cn(
+                        "w-6 h-6 rounded-lg border-2 transition-colors flex items-center justify-center",
+                        completedGoals[i] ? "bg-primary border-primary" : "border-white/20 group-hover:border-primary"
+                      )}>
+                        <CheckCircle2 className={cn("w-4 h-4 text-white", completedGoals[i] ? "opacity-100" : "opacity-0")} />
                       </div>
-                      <span className="text-xl font-bold text-white/90">{goal}</span>
+                      <span className={cn("text-xl font-bold transition-all", completedGoals[i] ? "text-white/50 line-through" : "text-white/90")}>{goal}</span>
                     </motion.div>
                   ))}
                </div>
@@ -293,6 +318,30 @@ export function FocusSessionUI({ task, resources }: FocusSessionProps) {
         </motion.div>
       )}
 
+      {/* SUCCESS PHASE */}
+      {step === 'DONE' && (
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="text-center space-y-8 z-10"
+        >
+          <div className="p-8 bg-white/20 rounded-full inline-block mb-4">
+            <Trophy className="w-24 h-24 text-white" />
+          </div>
+          <h1 className="text-7xl font-heading font-black tracking-tighter text-white">You made it!</h1>
+          <p className="text-2xl text-white/80 font-bold max-w-lg mx-auto">
+            Session complete. You crushed your objectives and maintained deep focus.
+          </p>
+          <div className="pt-8">
+            <Link href="/">
+              <Button size="lg" className="h-16 px-12 rounded-2xl bg-white text-emerald-600 hover:bg-white/90 font-black text-xl shadow-xl transition-all active:scale-95">
+                RETURN TO DASHBOARD
+              </Button>
+            </Link>
+          </div>
+        </motion.div>
+      )}
+
       {/* Hidden Audio */}
       <audio 
         ref={audioRef}
@@ -302,67 +351,4 @@ export function FocusSessionUI({ task, resources }: FocusSessionProps) {
       />
     </div>
   );
-}
-
-function Plus(props: any) {
-  return (
-    <svg
-      {...props}
-      xmlns="http://www.w3.org/2000/svg"
-      width="24"
-      height="24"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M5 12h14" />
-      <path d="M12 5v14" />
-    </svg>
-  )
-}
-
-function BookOpen(props: any) {
-  return (
-    <svg
-      {...props}
-      xmlns="http://www.w3.org/2000/svg"
-      width="24"
-      height="24"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M2 3h6a4 4 0 0 1 4 4v14a4 4 0 0 0-4-4H2z" />
-      <path d="M22 3h-6a4 4 0 0 0-4 4v14a4 4 0 0 1 4-4h6z" />
-    </svg>
-  )
-}
-
-function FileText(props: any) {
-  return (
-    <svg
-      {...props}
-      xmlns="http://www.w3.org/2000/svg"
-      width="24"
-      height="24"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" />
-      <polyline points="14 2 14 8 20 8" />
-      <line x1="16" y1="13" x2="8" y2="13" />
-      <line x1="16" y1="17" x2="8" y2="17" />
-      <line x1="10" y1="9" x2="8" y2="9" />
-    </svg>
-  )
 }

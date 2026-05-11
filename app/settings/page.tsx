@@ -1,10 +1,10 @@
-import { prisma } from '@/lib/prisma';
 import { updateUserName, clearAllTasks, syncStreak, logoutUser } from '@/lib/actions';
+import { saveAIKey } from '@/lib/ai-actions';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { User, ShieldAlert, Monitor, Bell, Download, Trash2, CheckCircle2, LogOut } from 'lucide-react';
+import { User, ShieldAlert, Bell, Download, Trash2, CheckCircle2, LogOut, BrainCircuit } from 'lucide-react';
 import { redirect } from 'next/navigation';
 
 export const dynamic = 'force-dynamic';
@@ -18,6 +18,14 @@ export default async function SettingsPage() {
     const name = formData.get('name') as string;
     if (name) {
       await updateUserName(name);
+    }
+  };
+
+  const handleUpdateAIKey = async (formData: FormData) => {
+    'use server';
+    const key = formData.get('key') as string;
+    if (key) {
+      await saveAIKey(key);
     }
   };
 
@@ -71,6 +79,41 @@ export default async function SettingsPage() {
                 Save Name
               </Button>
             </form>
+          </CardContent>
+        </Card>
+
+        {/* AI Integration Section */}
+        <Card className="rounded-[32px] border-border/60 shadow-sm overflow-hidden">
+          <CardHeader className="bg-muted/20 border-b p-8">
+            <div className="flex items-center gap-4">
+              <div className="p-3 bg-primary/10 rounded-2xl text-primary">
+                <BrainCircuit className="w-6 h-6" />
+              </div>
+              <div>
+                <CardTitle className="text-2xl font-heading font-black">AI Study Buddy</CardTitle>
+                <CardDescription className="font-medium">Use one validated key for Gemini, OpenAI, Anthropic, or Groq.</CardDescription>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="p-8">
+            <form action={handleUpdateAIKey} className="flex flex-col sm:flex-row gap-4 items-end max-w-xl">
+              <div className="space-y-2 flex-1 w-full">
+                <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground ml-1">AI Provider API Key</Label>
+                <Input 
+                  name="key" 
+                  type="password"
+                  defaultValue={userProgress?.geminiApiKey || ''} 
+                  placeholder="Paste your key here" 
+                  className="h-12 rounded-xl bg-muted/30 border-border/60 font-bold px-4"
+                />
+              </div>
+              <Button type="submit" className="h-12 rounded-xl font-bold px-8 shadow-lg shadow-primary/20">
+                Save Key
+              </Button>
+            </form>
+            <p className="mt-4 text-xs text-muted-foreground">
+              The app validates the key against the supported providers before using it in chat.
+            </p>
           </CardContent>
         </Card>
 

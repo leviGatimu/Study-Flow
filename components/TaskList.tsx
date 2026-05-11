@@ -1,7 +1,7 @@
 'use client';
 
 import { TaskCheckbox } from '@/components/TaskCheckbox';
-import { Clock, AlertTriangle } from 'lucide-react';
+import { Clock, AlertTriangle, BellRing } from 'lucide-react';
 
 type TaskType = {
   id: string;
@@ -37,20 +37,20 @@ export function TaskList({ tasks }: { tasks: TaskType[] }) {
         return (
           <div 
             key={task.id} 
-            className={`relative overflow-hidden bg-card border p-5 rounded-2xl transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md active:scale-[0.99] animate-in fade-in slide-in-from-bottom-4
+            className={`relative overflow-hidden bg-card border p-5 rounded-2xl transition-all duration-300 hover:-translate-y-1 hover:shadow-xl active:scale-[0.99] animate-in fade-in slide-in-from-bottom-4
               ${task.isDone 
                 ? 'bg-success/5 border-success/30 opacity-60' 
                 : task.isMissed
                   ? 'bg-destructive/5 border-destructive/30 opacity-60'
                   : isUrgent 
-                    ? 'border-orange-500 shadow-lg shadow-orange-500/10 bg-orange-500/5' 
-                    : 'border-border'
+                    ? 'border-orange-500 shadow-lg shadow-orange-500/20 bg-orange-500/[0.03]' 
+                    : 'border-border shadow-sm'
               }`}
             style={{ animationDelay: `${index * 50}ms`, animationFillMode: 'both' }}
           >
             {/* Urgent Glow Effect */}
             {isUrgent && !task.isDone && !task.isMissed && (
-              <div className="absolute top-0 right-0 w-32 h-32 bg-orange-500/10 rounded-full blur-3xl -z-10 translate-x-1/2 -translate-y-1/2 animate-pulse" />
+              <div className="absolute top-0 right-0 w-48 h-48 bg-orange-500/20 rounded-full blur-[64px] -z-10 translate-x-1/3 -translate-y-1/3 animate-pulse" />
             )}
 
             <div className="flex items-center justify-between relative z-10 flex-wrap gap-4">
@@ -65,9 +65,9 @@ export function TaskList({ tasks }: { tasks: TaskType[] }) {
                       {task.subject}
                     </p>
                     {isUrgent && !task.isDone && !task.isMissed && (
-                      <span className="flex items-center gap-1 bg-orange-500 text-white text-[10px] font-black px-2 py-0.5 rounded-full animate-bounce">
-                        <AlertTriangle className="w-3 h-3" /> URGENT EXAM PREP
-                      </span>
+                      <div className="flex items-center gap-1.5 bg-orange-500 text-white text-[10px] font-black px-3 py-1 rounded-full animate-in zoom-in duration-500">
+                        <BellRing className="w-3 h-3 animate-bounce" /> SMART ALARM: EXAM NEAR
+                      </div>
                     )}
                   </div>
                   
@@ -79,7 +79,7 @@ export function TaskList({ tasks }: { tasks: TaskType[] }) {
                         : task.isMissed
                           ? 'bg-destructive/10 text-destructive border-destructive/20'
                           : isUrgent
-                            ? 'bg-orange-500/20 text-orange-700 border-orange-500/30'
+                            ? 'bg-orange-500 text-white border-orange-600 shadow-md shadow-orange-500/20'
                             : 'bg-primary/5 text-primary border-primary/20'
                       }`}
                     >
@@ -88,7 +88,8 @@ export function TaskList({ tasks }: { tasks: TaskType[] }) {
                     </div>
                     
                     {task.template && (
-                      <span className="text-sm font-semibold text-muted-foreground bg-muted px-3 py-1.5 rounded-lg border border-transparent">
+                      <span className={`text-sm font-semibold px-3 py-1.5 rounded-lg border 
+                        ${isUrgent && !task.isDone && !task.isMissed ? 'bg-orange-500/10 border-orange-500/20 text-orange-700' : 'bg-muted border-transparent text-muted-foreground'}`}>
                         Deadline: {task.template.deadlineDay}
                       </span>
                     )}
@@ -96,13 +97,13 @@ export function TaskList({ tasks }: { tasks: TaskType[] }) {
                 </div>
               </div>
               
-              <div className={`text-xs font-bold px-4 py-2 rounded-full transition-colors duration-300 self-start sm:self-auto
+              <div className={`text-xs font-black px-4 py-2 rounded-full transition-all duration-300 self-start sm:self-auto tracking-widest uppercase
                 ${task.isDone 
                   ? 'bg-success/20 text-success' 
                   : task.isMissed
                     ? 'bg-destructive/20 text-destructive'
                     : isUrgent
-                      ? 'bg-orange-500 text-white shadow-orange-500/40 shadow-lg'
+                      ? 'bg-orange-500 text-white shadow-orange-500/40 shadow-lg scale-110'
                       : isHomework 
                         ? 'bg-primary/10 text-primary' 
                         : 'bg-orange-500/10 text-orange-600 dark:text-orange-400'
